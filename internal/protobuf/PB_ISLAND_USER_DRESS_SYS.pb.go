@@ -26,6 +26,7 @@ type PB_ISLAND_USER_DRESS_SYS struct {
 	CurDress      []*PB_ISLAND_CUR_DRESS  `protobuf:"bytes,1,rep,name=cur_dress,json=curDress" json:"cur_dress,omitempty"`
 	HadDress      []*PB_ISLAND_DRESS_USER `protobuf:"bytes,2,rep,name=had_dress,json=hadDress" json:"had_dress,omitempty"`
 	CapList       []*PB_CAP_STATE         `protobuf:"bytes,3,rep,name=cap_list,json=capList" json:"cap_list,omitempty"`
+	TwinCurList   []uint32                `protobuf:"varint,4,rep,name=twin_cur_list,json=twinCurList" json:"twin_cur_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -81,15 +82,23 @@ func (x *PB_ISLAND_USER_DRESS_SYS) GetCapList() []*PB_CAP_STATE {
 	return nil
 }
 
+func (x *PB_ISLAND_USER_DRESS_SYS) GetTwinCurList() []uint32 {
+	if x != nil {
+		return x.TwinCurList
+	}
+	return nil
+}
+
 var File_PB_ISLAND_USER_DRESS_SYS_proto protoreflect.FileDescriptor
 
 const file_PB_ISLAND_USER_DRESS_SYS_proto_rawDesc = "" +
 	"\n" +
-	"\x1ePB_ISLAND_USER_DRESS_SYS.proto\x12\abelfast\x1a\x12PB_CAP_STATE.proto\x1a\x19PB_ISLAND_CUR_DRESS.proto\x1a\x1aPB_ISLAND_DRESS_USER.proto\"\xc3\x01\n" +
+	"\x1ePB_ISLAND_USER_DRESS_SYS.proto\x12\abelfast\x1a\x12PB_CAP_STATE.proto\x1a\x19PB_ISLAND_CUR_DRESS.proto\x1a\x1aPB_ISLAND_DRESS_USER.proto\"\xe7\x01\n" +
 	"\x18PB_ISLAND_USER_DRESS_SYS\x129\n" +
 	"\tcur_dress\x18\x01 \x03(\v2\x1c.belfast.PB_ISLAND_CUR_DRESSR\bcurDress\x12:\n" +
 	"\thad_dress\x18\x02 \x03(\v2\x1d.belfast.PB_ISLAND_DRESS_USERR\bhadDress\x120\n" +
-	"\bcap_list\x18\x03 \x03(\v2\x15.belfast.PB_CAP_STATER\acapListB\fZ\n" +
+	"\bcap_list\x18\x03 \x03(\v2\x15.belfast.PB_CAP_STATER\acapList\x12\"\n" +
+	"\rtwin_cur_list\x18\x04 \x03(\rR\vtwinCurListB\fZ\n" +
 	"./protobuf"
 
 var (

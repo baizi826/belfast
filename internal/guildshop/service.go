@@ -2,6 +2,8 @@ package guildshop
 
 import (
 	"encoding/json"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/db"
@@ -22,9 +24,44 @@ type StoreEntry struct {
 }
 
 type SetEntry struct {
-	Key      string   `json:"key"`
-	KeyValue uint32   `json:"key_value"`
-	KeyArgs  []uint32 `json:"key_args"`
+	Key      string     `json:"key"`
+	KeyValue uint32     `json:"key_value"`
+	KeyArgs  SetKeyArgs `json:"key_args"`
+}
+
+// SetKeyArgs 容忍 []uint32 与字符串两种形态。
+// 9.7 的 ShareCfg/guildset.json 里 key_args 有的行是字符串（Lua 空表/字符串经转换器落成 "" 或 "50,80"），
+// 直接解进 []uint32 会报 "cannot unmarshal string into ... []uint32"，调用方把 error 往上抛 ⇒
+// 整条连接被 reset（实测 SC_60034 一进大舰队商店就掉线）。字符串里抽出数字，抽不到就当空。
+type SetKeyArgs []uint32
+
+func (a *SetKeyArgs) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed == "null" {
+		*a = nil
+		return nil
+	}
+	if strings.HasPrefix(trimmed, "[") {
+		var v []uint32
+		if err := json.Unmarshal([]byte(trimmed), &v); err != nil {
+			return err
+		}
+		*a = v
+		return nil
+	}
+	var s string
+	if err := json.Unmarshal([]byte(trimmed), &s); err != nil {
+		*a = nil // 其它标量形态一律当空，不再让整条连接陪葬
+		return nil
+	}
+	var out []uint32
+	for _, field := range strings.FieldsFunc(s, func(r rune) bool { return r < '0' || r > '9' }) {
+		if v, err := strconv.ParseUint(field, 10, 32); err == nil {
+			out = append(out, uint32(v))
+		}
+	}
+	*a = out
+	return nil
 }
 
 type Config struct {

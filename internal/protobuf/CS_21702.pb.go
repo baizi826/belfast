@@ -25,6 +25,7 @@ type CS_21702 struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	NpcId            *uint32                `protobuf:"varint,1,req,name=npc_id,json=npcId" json:"npc_id,omitempty"`
 	ActionFeedbackId *uint32                `protobuf:"varint,2,req,name=action_feedback_id,json=actionFeedbackId" json:"action_feedback_id,omitempty"`
+	ShipId           *uint32                `protobuf:"varint,3,req,name=ship_id,json=shipId" json:"ship_id,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -73,14 +74,22 @@ func (x *CS_21702) GetActionFeedbackId() uint32 {
 	return 0
 }
 
+func (x *CS_21702) GetShipId() uint32 {
+	if x != nil && x.ShipId != nil {
+		return *x.ShipId
+	}
+	return 0
+}
+
 var File_CS_21702_proto protoreflect.FileDescriptor
 
 const file_CS_21702_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_21702.proto\x12\abelfast\"O\n" +
+	"\x0eCS_21702.proto\x12\abelfast\"h\n" +
 	"\bCS_21702\x12\x15\n" +
 	"\x06npc_id\x18\x01 \x02(\rR\x05npcId\x12,\n" +
-	"\x12action_feedback_id\x18\x02 \x02(\rR\x10actionFeedbackIdB\fZ\n" +
+	"\x12action_feedback_id\x18\x02 \x02(\rR\x10actionFeedbackId\x12\x17\n" +
+	"\aship_id\x18\x03 \x02(\rR\x06shipIdB\fZ\n" +
 	"./protobuf"
 
 var (

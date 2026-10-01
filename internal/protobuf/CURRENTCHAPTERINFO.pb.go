@@ -47,6 +47,7 @@ type CURRENTCHAPTERINFO struct {
 	MoveStepCount         *uint32                  `protobuf:"varint,22,req,name=move_step_count,json=moveStepCount" json:"move_step_count,omitempty"`
 	SubmarineGroupList    []*GROUPINCHAPTER_P13    `protobuf:"bytes,23,rep,name=submarine_group_list,json=submarineGroupList" json:"submarine_group_list,omitempty"`
 	SupportGroupList      []*GROUPINCHAPTER_P13    `protobuf:"bytes,24,rep,name=support_group_list,json=supportGroupList" json:"support_group_list,omitempty"`
+	StartTime             *uint32                  `protobuf:"varint,25,req,name=start_time,json=startTime" json:"start_time,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -249,11 +250,18 @@ func (x *CURRENTCHAPTERINFO) GetSupportGroupList() []*GROUPINCHAPTER_P13 {
 	return nil
 }
 
+func (x *CURRENTCHAPTERINFO) GetStartTime() uint32 {
+	if x != nil && x.StartTime != nil {
+		return *x.StartTime
+	}
+	return 0
+}
+
 var File_CURRENTCHAPTERINFO_proto protoreflect.FileDescriptor
 
 const file_CURRENTCHAPTERINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x18CURRENTCHAPTERINFO.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x1bFLEETDUTYKEYVALUEPAIR.proto\x1a\x18GROUPINCHAPTER_P13.proto\x1a\x16STRATEGYINFO_P13.proto\"\x9d\t\n" +
+	"\x18CURRENTCHAPTERINFO.proto\x12\abelfast\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x1bFLEETDUTYKEYVALUEPAIR.proto\x1a\x18GROUPINCHAPTER_P13.proto\x1a\x16STRATEGYINFO_P13.proto\"\xbc\t\n" +
 	"\x12CURRENTCHAPTERINFO\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
 	"\x04time\x18\x02 \x02(\rR\x04time\x129\n" +
@@ -282,7 +290,9 @@ const file_CURRENTCHAPTERINFO_proto_rawDesc = "" +
 	"\ffleet_duties\x18\x15 \x03(\v2\x1e.belfast.FLEETDUTYKEYVALUEPAIRR\vfleetDuties\x12&\n" +
 	"\x0fmove_step_count\x18\x16 \x02(\rR\rmoveStepCount\x12M\n" +
 	"\x14submarine_group_list\x18\x17 \x03(\v2\x1b.belfast.GROUPINCHAPTER_P13R\x12submarineGroupList\x12I\n" +
-	"\x12support_group_list\x18\x18 \x03(\v2\x1b.belfast.GROUPINCHAPTER_P13R\x10supportGroupListB\fZ\n" +
+	"\x12support_group_list\x18\x18 \x03(\v2\x1b.belfast.GROUPINCHAPTER_P13R\x10supportGroupList\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x19 \x02(\rR\tstartTimeB\fZ\n" +
 	"./protobuf"
 
 var (

@@ -24,6 +24,7 @@ const (
 type CS_11208 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ActivityId    *uint32                `protobuf:"varint,1,req,name=activity_id,json=activityId" json:"activity_id,omitempty"`
+	Typ           *uint32                `protobuf:"varint,2,req,name=typ" json:"typ,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -65,14 +66,22 @@ func (x *CS_11208) GetActivityId() uint32 {
 	return 0
 }
 
+func (x *CS_11208) GetTyp() uint32 {
+	if x != nil && x.Typ != nil {
+		return *x.Typ
+	}
+	return 0
+}
+
 var File_CS_11208_proto protoreflect.FileDescriptor
 
 const file_CS_11208_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_11208.proto\x12\abelfast\"+\n" +
+	"\x0eCS_11208.proto\x12\abelfast\"=\n" +
 	"\bCS_11208\x12\x1f\n" +
 	"\vactivity_id\x18\x01 \x02(\rR\n" +
-	"activityIdB\fZ\n" +
+	"activityId\x12\x10\n" +
+	"\x03typ\x18\x02 \x02(\rR\x03typB\fZ\n" +
 	"./protobuf"
 
 var (

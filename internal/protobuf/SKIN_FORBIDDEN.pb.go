@@ -24,9 +24,10 @@ const (
 type SKIN_FORBIDDEN struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            *uint32                `protobuf:"varint,1,req,name=id" json:"id,omitempty"`
-	Type          *uint32                `protobuf:"varint,2,req,name=type" json:"type,omitempty"`
-	StartTime     *uint32                `protobuf:"varint,3,req,name=start_time,json=startTime" json:"start_time,omitempty"`
-	StopTime      *uint32                `protobuf:"varint,4,req,name=stop_time,json=stopTime" json:"stop_time,omitempty"`
+	SortOrder     *uint32                `protobuf:"varint,2,req,name=sort_order,json=sortOrder" json:"sort_order,omitempty"`
+	Type          *uint32                `protobuf:"varint,3,req,name=type" json:"type,omitempty"`
+	StartTime     *uint32                `protobuf:"varint,4,req,name=start_time,json=startTime" json:"start_time,omitempty"`
+	StopTime      *uint32                `protobuf:"varint,5,req,name=stop_time,json=stopTime" json:"stop_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -68,6 +69,13 @@ func (x *SKIN_FORBIDDEN) GetId() uint32 {
 	return 0
 }
 
+func (x *SKIN_FORBIDDEN) GetSortOrder() uint32 {
+	if x != nil && x.SortOrder != nil {
+		return *x.SortOrder
+	}
+	return 0
+}
+
 func (x *SKIN_FORBIDDEN) GetType() uint32 {
 	if x != nil && x.Type != nil {
 		return *x.Type
@@ -93,13 +101,15 @@ var File_SKIN_FORBIDDEN_proto protoreflect.FileDescriptor
 
 const file_SKIN_FORBIDDEN_proto_rawDesc = "" +
 	"\n" +
-	"\x14SKIN_FORBIDDEN.proto\x12\abelfast\"p\n" +
+	"\x14SKIN_FORBIDDEN.proto\x12\abelfast\"\x8f\x01\n" +
 	"\x0eSKIN_FORBIDDEN\x12\x0e\n" +
-	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
-	"\x04type\x18\x02 \x02(\rR\x04type\x12\x1d\n" +
+	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1d\n" +
 	"\n" +
-	"start_time\x18\x03 \x02(\rR\tstartTime\x12\x1b\n" +
-	"\tstop_time\x18\x04 \x02(\rR\bstopTimeB\fZ\n" +
+	"sort_order\x18\x02 \x02(\rR\tsortOrder\x12\x12\n" +
+	"\x04type\x18\x03 \x02(\rR\x04type\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\x04 \x02(\rR\tstartTime\x12\x1b\n" +
+	"\tstop_time\x18\x05 \x02(\rR\bstopTimeB\fZ\n" +
 	"./protobuf"
 
 var (

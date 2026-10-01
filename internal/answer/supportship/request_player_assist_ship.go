@@ -32,9 +32,7 @@ func blankAssistShipInfo() *protobuf.SHIPINFO {
 		Level:      proto.Uint32(0),
 		Exp:        proto.Uint32(0),
 		Energy:     proto.Uint32(0),
-		State: &protobuf.SHIPSTATE{
-			State: proto.Uint32(0),
-		},
+		State:      proto.Uint32(0),
 		IsLocked:    proto.Uint32(0),
 		Intimacy:    proto.Uint32(0),
 		Proficiency: proto.Uint32(0),

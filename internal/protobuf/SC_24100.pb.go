@@ -24,6 +24,7 @@ const (
 type SC_24100 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Score         *uint32                `protobuf:"varint,1,req,name=score" json:"score,omitempty"`
+	ActId         *uint32                `protobuf:"varint,2,req,name=act_id,json=actId" json:"act_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -65,13 +66,21 @@ func (x *SC_24100) GetScore() uint32 {
 	return 0
 }
 
+func (x *SC_24100) GetActId() uint32 {
+	if x != nil && x.ActId != nil {
+		return *x.ActId
+	}
+	return 0
+}
+
 var File_SC_24100_proto protoreflect.FileDescriptor
 
 const file_SC_24100_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_24100.proto\x12\abelfast\" \n" +
+	"\x0eSC_24100.proto\x12\abelfast\"7\n" +
 	"\bSC_24100\x12\x14\n" +
-	"\x05score\x18\x01 \x02(\rR\x05scoreB\fZ\n" +
+	"\x05score\x18\x01 \x02(\rR\x05score\x12\x15\n" +
+	"\x06act_id\x18\x02 \x02(\rR\x05actIdB\fZ\n" +
 	"./protobuf"
 
 var (

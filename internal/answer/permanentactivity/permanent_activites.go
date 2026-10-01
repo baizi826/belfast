@@ -6,7 +6,6 @@ import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
-	"google.golang.org/protobuf/proto"
 )
 
 type permanentActivity struct {
@@ -22,9 +21,11 @@ func PermanentActivites(buffer *[]byte, client *connection.Client) (int, int, er
 	if err != nil {
 		return 0, 11210, err
 	}
+	// 9.7 客户端把 permanent_now 声明成 repeated（label=3）：标量发出去客户端解不出来，
+	// 原先的 proto.Uint32(...) 在重生成后的类型上已经编不过。
 	response := protobuf.SC_11210{
 		PermanentActivity: make([]uint32, 0, len(entries)),
-		PermanentNow:      proto.Uint32(state.CurrentActivityID),
+		PermanentNow:      []uint32{state.CurrentActivityID},
 	}
 	for _, entry := range entries {
 		var activity permanentActivity

@@ -39,6 +39,7 @@ type ACTIVITYINFO struct {
 	BuffList          []*BENEFITBUFF         `protobuf:"bytes,15,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
 	StrData1          *string                `protobuf:"bytes,16,opt,name=str_data1,json=strData1" json:"str_data1,omitempty"`
 	Data4List         []uint32               `protobuf:"varint,17,rep,name=data4_list,json=data4List" json:"data4_list,omitempty"`
+	Mall              *PB_ACTIVITY_MALL      `protobuf:"bytes,18,opt,name=mall" json:"mall,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -185,11 +186,18 @@ func (x *ACTIVITYINFO) GetData4List() []uint32 {
 	return nil
 }
 
+func (x *ACTIVITYINFO) GetMall() *PB_ACTIVITY_MALL {
+	if x != nil {
+		return x.Mall
+	}
+	return nil
+}
+
 var File_ACTIVITYINFO_proto protoreflect.FileDescriptor
 
 const file_ACTIVITYINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x12ACTIVITYINFO.proto\x12\abelfast\x1a\x11BENEFITBUFF.proto\x1a\x14COLLECTIONINFO.proto\x1a\x13GROUPINFO_P11.proto\x1a\x16KEYVALUELIST_P11.proto\x1a\x0eTASKINFO.proto\"\xd4\x04\n" +
+	"\x12ACTIVITYINFO.proto\x12\abelfast\x1a\x11BENEFITBUFF.proto\x1a\x14COLLECTIONINFO.proto\x1a\x13GROUPINFO_P11.proto\x1a\x16KEYVALUELIST_P11.proto\x1a\x16PB_ACTIVITY_MALL.proto\x1a\x0eTASKINFO.proto\"\x83\x05\n" +
 	"\fACTIVITYINFO\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1b\n" +
 	"\tstop_time\x18\x02 \x02(\rR\bstopTime\x12\x14\n" +
@@ -212,7 +220,8 @@ const file_ACTIVITYINFO_proto_rawDesc = "" +
 	"\tbuff_list\x18\x0f \x03(\v2\x14.belfast.BENEFITBUFFR\bbuffList\x12\x1b\n" +
 	"\tstr_data1\x18\x10 \x01(\tR\bstrData1\x12\x1d\n" +
 	"\n" +
-	"data4_list\x18\x11 \x03(\rR\tdata4ListB\fZ\n" +
+	"data4_list\x18\x11 \x03(\rR\tdata4List\x12-\n" +
+	"\x04mall\x18\x12 \x01(\v2\x19.belfast.PB_ACTIVITY_MALLR\x04mallB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -235,6 +244,7 @@ var file_ACTIVITYINFO_proto_goTypes = []any{
 	(*COLLECTIONINFO)(nil),   // 3: belfast.COLLECTIONINFO
 	(*TASKINFO)(nil),         // 4: belfast.TASKINFO
 	(*BENEFITBUFF)(nil),      // 5: belfast.BENEFITBUFF
+	(*PB_ACTIVITY_MALL)(nil), // 6: belfast.PB_ACTIVITY_MALL
 }
 var file_ACTIVITYINFO_proto_depIdxs = []int32{
 	1, // 0: belfast.ACTIVITYINFO.date1_key_value_list:type_name -> belfast.KEYVALUELIST_P11
@@ -242,11 +252,12 @@ var file_ACTIVITYINFO_proto_depIdxs = []int32{
 	3, // 2: belfast.ACTIVITYINFO.collection_list:type_name -> belfast.COLLECTIONINFO
 	4, // 3: belfast.ACTIVITYINFO.task_list:type_name -> belfast.TASKINFO
 	5, // 4: belfast.ACTIVITYINFO.buff_list:type_name -> belfast.BENEFITBUFF
-	5, // [5:5] is the sub-list for method output_type
-	5, // [5:5] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	6, // 5: belfast.ACTIVITYINFO.mall:type_name -> belfast.PB_ACTIVITY_MALL
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_ACTIVITYINFO_proto_init() }
@@ -258,6 +269,7 @@ func file_ACTIVITYINFO_proto_init() {
 	file_COLLECTIONINFO_proto_init()
 	file_GROUPINFO_P11_proto_init()
 	file_KEYVALUELIST_P11_proto_init()
+	file_PB_ACTIVITY_MALL_proto_init()
 	file_TASKINFO_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{

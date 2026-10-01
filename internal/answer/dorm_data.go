@@ -49,6 +49,27 @@ func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return client.SendMessage(19001, &response)
 }
 
+// DormExpSync 处理 CS_19026{type} -> SC_19027{exp, food, next_timestamp}。
+// 上游没实现这个命令，后果是：客户端从后宅返回主界面时发它、永远等不到应答，
+// 就卡在加载页（黄鸡）不动 —— 实测日志里 `Handler/Missing | CS_19026` 每 6 秒刷一次。
+// 返回的字段与 SC_19001 同源（后宅的经验/食物/下次结算时间戳），客户端拿它刷新后就能继续往下走。
+func DormExpSync(buffer *[]byte, client *connection.Client) (int, int, error) {
+	var request protobuf.CS_19026
+	if err := proto.Unmarshal(*buffer, &request); err != nil {
+		return 0, 19027, err
+	}
+	snapshot, err := loadDormSnapshot(client.Commander.CommanderID, client.Commander.DormName)
+	if err != nil {
+		return 0, 19027, err
+	}
+	response := protobuf.SC_19027{
+		Exp:           proto.Uint32(snapshot.State.ExpPos),
+		Food:          proto.Uint32(snapshot.State.Food),
+		NextTimestamp: proto.Uint32(snapshot.State.NextTimestamp),
+	}
+	return client.SendMessage(19027, &response)
+}
+
 func VisitBackyard(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var request protobuf.CS_19101
 	if err := proto.Unmarshal(*buffer, &request); err != nil {
@@ -158,13 +179,7 @@ func buildDormDataResponse(snapshot *dormSnapshot) (protobuf.SC_19001, error) {
 		Name:                 proto.String(snapshot.DormName),
 	}
 
-	if len(snapshot.Ships) > 0 {
-		shipIDs := make([]uint32, 0, len(snapshot.Ships))
-		for _, ship := range snapshot.Ships {
-			shipIDs = append(shipIDs, ship.ID)
-		}
-		response.ShipIdList = shipIDs
-	}
+	response.ShipList = buildDormShipList(snapshot.Ships)
 
 	response.FurnitureIdList = buildDormFurnitureInfoList(snapshot.Furnitures)
 
@@ -188,17 +203,7 @@ func buildVisitBackyardResponse(snapshot *dormSnapshot, name string) (protobuf.S
 		Name:                 proto.String(name),
 	}
 
-	if len(snapshot.Ships) > 0 {
-		response.ShipIdList = make([]*protobuf.SHIP_IN_DROM, 0, len(snapshot.Ships))
-		for _, ship := range snapshot.Ships {
-			response.ShipIdList = append(response.ShipIdList, &protobuf.SHIP_IN_DROM{
-				Id:     proto.Uint32(ship.ID),
-				Tid:    proto.Uint32(ship.TID),
-				State:  proto.Uint32(ship.State),
-				SkinId: proto.Uint32(ship.SkinID),
-			})
-		}
-	}
+	response.ShipList = buildDormShipList(snapshot.Ships)
 
 	response.FurnitureIdList = buildDormFurnitureInfoList(snapshot.Furnitures)
 
@@ -209,6 +214,28 @@ func buildVisitBackyardResponse(snapshot *dormSnapshot, name string) (protobuf.S
 	response.FurniturePutList = floorPutList
 
 	return response, nil
+}
+
+// buildDormShipList 投影 dorm 里的船。9.7 客户端把这个消息从 SHIP_IN_DROM{id,tid,state,skin_id}
+// 换成了 SHIPINFO_IN_DORM{id,floor,pop_icon,pop_intimacy,tid,skin_id}，且 SC_19001 也从纯 id 列表
+// （ship_id_list）改成同一消息。pop_icon 承接原来 state 的值（2=休息/5=训练/6=温泉，见 orm/morale.go）；
+// floor 与 pop_intimacy 服务端目前不按船记录，先填 0。
+func buildDormShipList(ships []dormShipSnapshot) []*protobuf.SHIPINFO_IN_DORM {
+	if len(ships) == 0 {
+		return nil
+	}
+	list := make([]*protobuf.SHIPINFO_IN_DORM, 0, len(ships))
+	for _, ship := range ships {
+		list = append(list, &protobuf.SHIPINFO_IN_DORM{
+			Id:          proto.Uint32(ship.ID),
+			Floor:       proto.Uint32(0),
+			PopIcon:     proto.Uint32(ship.State),
+			PopIntimacy: proto.Uint32(0),
+			Tid:         proto.Uint32(ship.TID),
+			SkinId:      proto.Uint32(ship.SkinID),
+		})
+	}
+	return list
 }
 
 func buildDormFurnitureInfoList(furnitures []orm.CommanderFurniture) []*protobuf.FURNITUREINFO {

@@ -27,7 +27,7 @@ type SC_19102 struct {
 	Food                 *uint32                `protobuf:"varint,2,req,name=food" json:"food,omitempty"`
 	FoodMaxIncrease      *uint32                `protobuf:"varint,3,req,name=food_max_increase,json=foodMaxIncrease" json:"food_max_increase,omitempty"`
 	FoodMaxIncreaseCount *uint32                `protobuf:"varint,4,req,name=food_max_increase_count,json=foodMaxIncreaseCount" json:"food_max_increase_count,omitempty"`
-	ShipIdList           []*SHIP_IN_DROM        `protobuf:"bytes,5,rep,name=ship_id_list,json=shipIdList" json:"ship_id_list,omitempty"`
+	ShipList             []*SHIPINFO_IN_DORM    `protobuf:"bytes,5,rep,name=ship_list,json=shipList" json:"ship_list,omitempty"`
 	FurnitureIdList      []*FURNITUREINFO       `protobuf:"bytes,6,rep,name=furniture_id_list,json=furnitureIdList" json:"furniture_id_list,omitempty"`
 	FloorNum             *uint32                `protobuf:"varint,7,req,name=floor_num,json=floorNum" json:"floor_num,omitempty"`
 	ExpPos               *uint32                `protobuf:"varint,8,req,name=exp_pos,json=expPos" json:"exp_pos,omitempty"`
@@ -95,9 +95,9 @@ func (x *SC_19102) GetFoodMaxIncreaseCount() uint32 {
 	return 0
 }
 
-func (x *SC_19102) GetShipIdList() []*SHIP_IN_DROM {
+func (x *SC_19102) GetShipList() []*SHIPINFO_IN_DORM {
 	if x != nil {
-		return x.ShipIdList
+		return x.ShipList
 	}
 	return nil
 }
@@ -141,14 +141,13 @@ var File_SC_19102_proto protoreflect.FileDescriptor
 
 const file_SC_19102_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_19102.proto\x12\abelfast\x1a\x15FURFLOORPUTINFO.proto\x1a\x13FURNITUREINFO.proto\x1a\x12SHIP_IN_DROM.proto\"\xa0\x03\n" +
+	"\x0eSC_19102.proto\x12\abelfast\x1a\x15FURFLOORPUTINFO.proto\x1a\x13FURNITUREINFO.proto\x1a\x16SHIPINFO_IN_DORM.proto\"\x9f\x03\n" +
 	"\bSC_19102\x12\x0e\n" +
 	"\x02lv\x18\x01 \x02(\rR\x02lv\x12\x12\n" +
 	"\x04food\x18\x02 \x02(\rR\x04food\x12*\n" +
 	"\x11food_max_increase\x18\x03 \x02(\rR\x0ffoodMaxIncrease\x125\n" +
-	"\x17food_max_increase_count\x18\x04 \x02(\rR\x14foodMaxIncreaseCount\x127\n" +
-	"\fship_id_list\x18\x05 \x03(\v2\x15.belfast.SHIP_IN_DROMR\n" +
-	"shipIdList\x12B\n" +
+	"\x17food_max_increase_count\x18\x04 \x02(\rR\x14foodMaxIncreaseCount\x126\n" +
+	"\tship_list\x18\x05 \x03(\v2\x19.belfast.SHIPINFO_IN_DORMR\bshipList\x12B\n" +
 	"\x11furniture_id_list\x18\x06 \x03(\v2\x16.belfast.FURNITUREINFOR\x0ffurnitureIdList\x12\x1b\n" +
 	"\tfloor_num\x18\a \x02(\rR\bfloorNum\x12\x17\n" +
 	"\aexp_pos\x18\b \x02(\rR\x06expPos\x12F\n" +
@@ -171,13 +170,13 @@ func file_SC_19102_proto_rawDescGZIP() []byte {
 
 var file_SC_19102_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_19102_proto_goTypes = []any{
-	(*SC_19102)(nil),        // 0: belfast.SC_19102
-	(*SHIP_IN_DROM)(nil),    // 1: belfast.SHIP_IN_DROM
-	(*FURNITUREINFO)(nil),   // 2: belfast.FURNITUREINFO
-	(*FURFLOORPUTINFO)(nil), // 3: belfast.FURFLOORPUTINFO
+	(*SC_19102)(nil),         // 0: belfast.SC_19102
+	(*SHIPINFO_IN_DORM)(nil), // 1: belfast.SHIPINFO_IN_DORM
+	(*FURNITUREINFO)(nil),    // 2: belfast.FURNITUREINFO
+	(*FURFLOORPUTINFO)(nil),  // 3: belfast.FURFLOORPUTINFO
 }
 var file_SC_19102_proto_depIdxs = []int32{
-	1, // 0: belfast.SC_19102.ship_id_list:type_name -> belfast.SHIP_IN_DROM
+	1, // 0: belfast.SC_19102.ship_list:type_name -> belfast.SHIPINFO_IN_DORM
 	2, // 1: belfast.SC_19102.furniture_id_list:type_name -> belfast.FURNITUREINFO
 	3, // 2: belfast.SC_19102.furniture_put_list:type_name -> belfast.FURFLOORPUTINFO
 	3, // [3:3] is the sub-list for method output_type
@@ -194,7 +193,7 @@ func file_SC_19102_proto_init() {
 	}
 	file_FURFLOORPUTINFO_proto_init()
 	file_FURNITUREINFO_proto_init()
-	file_SHIP_IN_DROM_proto_init()
+	file_SHIPINFO_IN_DORM_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

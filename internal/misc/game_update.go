@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -199,14 +201,26 @@ func LastCacheUpdateVersion() string {
 }
 
 func init() {
-	// Download the latest versions and parse them to the map
-	resp, err := http.Get(versionURL)
-	if err != nil {
-		logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to fetch versions: %s", err.Error()), logger.LOG_LEVEL_ERROR)
-		return
+	// 下载最新版本号并解析成 map。设了 BELFAST_DATA_DIR 就从本地读，不走网络。
+	var body io.ReadCloser
+	if dir := belfastDataDir(); dir != "" {
+		path := filepath.Join(dir, "versions.json")
+		f, err := os.Open(path)
+		if err != nil {
+			logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to open local versions.json: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+			return
+		}
+		body = f
+	} else {
+		resp, err := http.Get(versionURL)
+		if err != nil {
+			logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to fetch versions: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+			return
+		}
+		body = resp.Body
 	}
-	defer resp.Body.Close()
-	decoder := json.NewDecoder(resp.Body)
+	defer body.Close()
+	decoder := json.NewDecoder(body)
 	deserializedMap := make(map[string]string)
 	if err := decoder.Decode(&deserializedMap); err != nil {
 		logger.LogEvent("GameUpdate", "init", fmt.Sprintf("failed to parse versions: %s", err.Error()), logger.LOG_LEVEL_ERROR)

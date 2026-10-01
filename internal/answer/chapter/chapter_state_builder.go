@@ -78,6 +78,8 @@ func buildCurrentChapterInfo(template *chapterTemplate, payload *protobuf.CS_131
 		KillCount:             proto.Uint32(0),
 		InitShipCount:         proto.Uint32(initShipCount),
 		ContinuousKillCount:   proto.Uint32(0),
+		// 9.7 新增 required：不进则 proto.Marshal 失败、连接被 reset。语义 = 本次出击开始时间。
+		StartTime: proto.Uint32(uint32(time.Now().Unix())),
 		BattleStatistics:      []*protobuf.STRATEGYINFO_P13{},
 		FleetDuties:           payload.GetFleetDuties(),
 		MoveStepCount:         proto.Uint32(0),
@@ -103,6 +105,7 @@ func buildCurrentChapterInfoKR(template *chapterTemplate, payload *protobuf.CS_1
 		MainGroupList:         mainGroups,
 		AiList:                []*protobuf.CHAPTERCELLINFO_P13{},
 		EscortList:            []*protobuf.CHAPTERCELLINFO_P13{},
+		StartTime:             proto.Uint32(uint32(time.Now().Unix())),
 		Round:                 proto.Uint32(0),
 		IsSubmarineAutoAttack: proto.Uint32(0),
 		OperationBuff:         buildOperationBuffList(operationBuffID),

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 	"strconv"
 	"strings"
 
@@ -53,6 +54,42 @@ type chapterTemplate struct {
 	ProgressBoss       uint32       `json:"progress_boss"`
 	Oil                uint32       `json:"oil"`
 	Time               uint32       `json:"time"`
+}
+
+// UnmarshalJSON 先把"空表"改写成空数组，再走默认解码。
+// 原因：Lua 空表经 tools/lua2json.py 一律写成 {}（转换器分不出空数组和空表）。实测 9.7 的
+// chapter_template.json：box_list 1012 行是 {}、ambush_ratio_extra 936 行、land_based 834 行、
+// chapter_strategy 527 行、ambush_expedition_list 也是 {} …… 而 encoding/json 把对象解进切片字段
+// 会直接报错，调用方拿到 error 就 client.CloseWithError 把整条连接 reset（实测一进关卡 SC_13102 掉线）。
+// 这里用反射遍历本结构体的**切片字段**，只把对应的空对象值改写成 []：
+//   - 不写死键名（第一版写死了，漏掉 ambush_expedition_list，第二次实机又掉线）；
+//   - 只看以 { 开头的值 ⇒ 字符串形态的 land_based（190 行）与真正的对象字段不受影响。
+func (t *chapterTemplate) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	typ := reflect.TypeOf(chapterTemplate{})
+	for i := 0; i < typ.NumField(); i++ {
+		field := typ.Field(i)
+		key := strings.Split(field.Tag.Get("json"), ",")[0]
+		if key == "" || key == "-" {
+			continue
+		}
+		kind := field.Type.Kind()
+		if kind != reflect.Slice && kind != reflect.Array {
+			continue
+		}
+		if raw, ok := fields[key]; ok && strings.HasPrefix(strings.TrimSpace(string(raw)), "{") {
+			fields[key] = json.RawMessage("[]")
+		}
+	}
+	normalized, err := json.Marshal(fields)
+	if err != nil {
+		return err
+	}
+	type plain chapterTemplate // 别名：避免递归调用本方法
+	return json.Unmarshal(normalized, (*plain)(t))
 }
 
 type chapter2DAny [][]any

@@ -10,7 +10,13 @@ import (
 )
 
 func CommanderStoryProgress(buffer *[]byte, client *connection.Client) (int, int, error) {
-	response := protobuf.SC_13001{}
+	// 9.7 客户端把 oil / time_acc / extra_time_max 加成了 required 字段：不设值 ⇒ proto.Marshal 报
+	// "required field ... not set" ⇒ 整条连接被 reset。这三个都是挂机作战的计数器，先给 0。
+	response := protobuf.SC_13001{
+		Oil:          proto.Uint32(0),
+		TimeAcc:      proto.Uint32(0),
+		ExtraTimeMax: proto.Uint32(0),
+	}
 	state, err := orm.GetOrCreateRemasterState(client.Commander.CommanderID)
 	if err != nil {
 		return 0, 13001, err

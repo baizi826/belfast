@@ -43,6 +43,7 @@ type WORLDINFO struct {
 	ChapterList              []*WORLDMAPID          `protobuf:"bytes,19,rep,name=chapter_list,json=chapterList" json:"chapter_list,omitempty"`
 	SairenChapter            []uint32               `protobuf:"varint,20,rep,name=sairen_chapter,json=sairenChapter" json:"sairen_chapter,omitempty"`
 	MonthBoss                []*KVDATA              `protobuf:"bytes,21,rep,name=month_boss,json=monthBoss" json:"month_boss,omitempty"`
+	RandomMapIdListByAuto    []uint32               `protobuf:"varint,22,rep,name=random_map_id_list_by_auto,json=randomMapIdListByAuto" json:"random_map_id_list_by_auto,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -217,11 +218,18 @@ func (x *WORLDINFO) GetMonthBoss() []*KVDATA {
 	return nil
 }
 
+func (x *WORLDINFO) GetRandomMapIdListByAuto() []uint32 {
+	if x != nil {
+		return x.RandomMapIdListByAuto
+	}
+	return nil
+}
+
 var File_WORLDINFO_proto protoreflect.FileDescriptor
 
 const file_WORLDINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0fWORLDINFO.proto\x12\abelfast\x1a\x0fBUFF_INFO.proto\x1a\x14GOODS_INFO_P33.proto\x1a\x18GROUPINCHAPTER_P33.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x0fTASK_INFO.proto\x1a\x10WORLDMAPID.proto\x1a\x15WORLD_ITEM_INFO.proto\"\x8c\a\n" +
+	"\x0fWORLDINFO.proto\x12\abelfast\x1a\x0fBUFF_INFO.proto\x1a\x14GOODS_INFO_P33.proto\x1a\x18GROUPINCHAPTER_P33.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x0fTASK_INFO.proto\x1a\x10WORLDMAPID.proto\x1a\x15WORLD_ITEM_INFO.proto\"\xc7\a\n" +
 	"\tWORLDINFO\x12\x15\n" +
 	"\x06map_id\x18\x01 \x02(\rR\x05mapId\x12\x12\n" +
 	"\x04time\x18\x02 \x01(\rR\x04time\x12:\n" +
@@ -246,7 +254,8 @@ const file_WORLDINFO_proto_rawDesc = "" +
 	"\fchapter_list\x18\x13 \x03(\v2\x13.belfast.WORLDMAPIDR\vchapterList\x12%\n" +
 	"\x0esairen_chapter\x18\x14 \x03(\rR\rsairenChapter\x12.\n" +
 	"\n" +
-	"month_boss\x18\x15 \x03(\v2\x0f.belfast.KVDATAR\tmonthBossB\fZ\n" +
+	"month_boss\x18\x15 \x03(\v2\x0f.belfast.KVDATAR\tmonthBoss\x129\n" +
+	"\x1arandom_map_id_list_by_auto\x18\x16 \x03(\rR\x15randomMapIdListByAutoB\fZ\n" +
 	"./protobuf"
 
 var (

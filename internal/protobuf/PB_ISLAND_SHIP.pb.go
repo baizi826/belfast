@@ -35,6 +35,7 @@ type PB_ISLAND_SHIP struct {
 	UpLimitState  *uint32                `protobuf:"varint,10,req,name=up_limit_state,json=upLimitState" json:"up_limit_state,omitempty"`
 	CurSkinId     *uint32                `protobuf:"varint,11,req,name=cur_skin_id,json=curSkinId" json:"cur_skin_id,omitempty"`
 	WorkPlace     *PB_SHIP_WORK_PLACE    `protobuf:"bytes,12,req,name=work_place,json=workPlace" json:"work_place,omitempty"`
+	SkillUseState *uint32                `protobuf:"varint,13,req,name=skill_use_state,json=skillUseState" json:"skill_use_state,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -153,11 +154,18 @@ func (x *PB_ISLAND_SHIP) GetWorkPlace() *PB_SHIP_WORK_PLACE {
 	return nil
 }
 
+func (x *PB_ISLAND_SHIP) GetSkillUseState() uint32 {
+	if x != nil && x.SkillUseState != nil {
+		return *x.SkillUseState
+	}
+	return 0
+}
+
 var File_PB_ISLAND_SHIP_proto protoreflect.FileDescriptor
 
 const file_PB_ISLAND_SHIP_proto_rawDesc = "" +
 	"\n" +
-	"\x14PB_ISLAND_SHIP.proto\x12\abelfast\x1a\x14PB_ISLAND_BUFF.proto\x1a\x12PB_SHIP_ATTR.proto\x1a\x18PB_SHIP_WORK_PLACE.proto\"\xa8\x03\n" +
+	"\x14PB_ISLAND_SHIP.proto\x12\abelfast\x1a\x14PB_ISLAND_BUFF.proto\x1a\x12PB_SHIP_ATTR.proto\x1a\x18PB_SHIP_WORK_PLACE.proto\"\xd0\x03\n" +
 	"\x0ePB_ISLAND_SHIP\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x0e\n" +
 	"\x02lv\x18\x02 \x02(\rR\x02lv\x12\x10\n" +
@@ -172,7 +180,8 @@ const file_PB_ISLAND_SHIP_proto_rawDesc = "" +
 	" \x02(\rR\fupLimitState\x12\x1e\n" +
 	"\vcur_skin_id\x18\v \x02(\rR\tcurSkinId\x12:\n" +
 	"\n" +
-	"work_place\x18\f \x02(\v2\x1b.belfast.PB_SHIP_WORK_PLACER\tworkPlaceB\fZ\n" +
+	"work_place\x18\f \x02(\v2\x1b.belfast.PB_SHIP_WORK_PLACER\tworkPlace\x12&\n" +
+	"\x0fskill_use_state\x18\r \x02(\rR\rskillUseStateB\fZ\n" +
 	"./protobuf"
 
 var (

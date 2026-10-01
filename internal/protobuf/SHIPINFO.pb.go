@@ -29,7 +29,7 @@ type SHIPINFO struct {
 	Exp                 *uint32                `protobuf:"varint,4,req,name=exp" json:"exp,omitempty"`
 	EquipInfoList       []*EQUIPSKIN_INFO      `protobuf:"bytes,5,rep,name=equip_info_list,json=equipInfoList" json:"equip_info_list,omitempty"`
 	Energy              *uint32                `protobuf:"varint,6,req,name=energy" json:"energy,omitempty"`
-	State               *SHIPSTATE             `protobuf:"bytes,7,req,name=state" json:"state,omitempty"`
+	State               *uint32                `protobuf:"varint,7,req,name=state" json:"state,omitempty"`
 	IsLocked            *uint32                `protobuf:"varint,8,req,name=is_locked,json=isLocked" json:"is_locked,omitempty"`
 	TransformList       []*TRANSFORM_INFO      `protobuf:"bytes,9,rep,name=transform_list,json=transformList" json:"transform_list,omitempty"`
 	SkillIdList         []*SHIPSKILL           `protobuf:"bytes,10,rep,name=skill_id_list,json=skillIdList" json:"skill_id_list,omitempty"`
@@ -124,11 +124,11 @@ func (x *SHIPINFO) GetEnergy() uint32 {
 	return 0
 }
 
-func (x *SHIPINFO) GetState() *SHIPSTATE {
-	if x != nil {
-		return x.State
+func (x *SHIPINFO) GetState() uint32 {
+	if x != nil && x.State != nil {
+		return *x.State
 	}
-	return nil
+	return 0
 }
 
 func (x *SHIPINFO) GetIsLocked() uint32 {
@@ -261,7 +261,7 @@ var File_SHIPINFO_proto protoreflect.FileDescriptor
 
 const file_SHIPINFO_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSHIPINFO.proto\x12\abelfast\x1a\x14EQUIPSKIN_INFO.proto\x1a\fKVDATA.proto\x1a\x0fSHIPSKILL.proto\x1a\x0fSHIPSTATE.proto\x1a\x12SPWEAPONINFO.proto\x1a\x13STRENGTH_INFO.proto\x1a\x14TRANSFORM_INFO.proto\"\xb5\a\n" +
+	"\x0eSHIPINFO.proto\x12\abelfast\x1a\x14EQUIPSKIN_INFO.proto\x1a\fKVDATA.proto\x1a\x0fSHIPSKILL.proto\x1a\x12SPWEAPONINFO.proto\x1a\x13STRENGTH_INFO.proto\x1a\x14TRANSFORM_INFO.proto\"\xa1\a\n" +
 	"\bSHIPINFO\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x1f\n" +
 	"\vtemplate_id\x18\x02 \x02(\rR\n" +
@@ -269,8 +269,8 @@ const file_SHIPINFO_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x02(\rR\x05level\x12\x10\n" +
 	"\x03exp\x18\x04 \x02(\rR\x03exp\x12?\n" +
 	"\x0fequip_info_list\x18\x05 \x03(\v2\x17.belfast.EQUIPSKIN_INFOR\requipInfoList\x12\x16\n" +
-	"\x06energy\x18\x06 \x02(\rR\x06energy\x12(\n" +
-	"\x05state\x18\a \x02(\v2\x12.belfast.SHIPSTATER\x05state\x12\x1b\n" +
+	"\x06energy\x18\x06 \x02(\rR\x06energy\x12\x14\n" +
+	"\x05state\x18\a \x02(\rR\x05state\x12\x1b\n" +
 	"\tis_locked\x18\b \x02(\rR\bisLocked\x12>\n" +
 	"\x0etransform_list\x18\t \x03(\v2\x17.belfast.TRANSFORM_INFOR\rtransformList\x126\n" +
 	"\rskill_id_list\x18\n" +
@@ -310,26 +310,24 @@ var file_SHIPINFO_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SHIPINFO_proto_goTypes = []any{
 	(*SHIPINFO)(nil),       // 0: belfast.SHIPINFO
 	(*EQUIPSKIN_INFO)(nil), // 1: belfast.EQUIPSKIN_INFO
-	(*SHIPSTATE)(nil),      // 2: belfast.SHIPSTATE
-	(*TRANSFORM_INFO)(nil), // 3: belfast.TRANSFORM_INFO
-	(*SHIPSKILL)(nil),      // 4: belfast.SHIPSKILL
-	(*STRENGTH_INFO)(nil),  // 5: belfast.STRENGTH_INFO
-	(*SPWEAPONINFO)(nil),   // 6: belfast.SPWEAPONINFO
-	(*KVDATA)(nil),         // 7: belfast.KVDATA
+	(*TRANSFORM_INFO)(nil), // 2: belfast.TRANSFORM_INFO
+	(*SHIPSKILL)(nil),      // 3: belfast.SHIPSKILL
+	(*STRENGTH_INFO)(nil),  // 4: belfast.STRENGTH_INFO
+	(*SPWEAPONINFO)(nil),   // 5: belfast.SPWEAPONINFO
+	(*KVDATA)(nil),         // 6: belfast.KVDATA
 }
 var file_SHIPINFO_proto_depIdxs = []int32{
 	1, // 0: belfast.SHIPINFO.equip_info_list:type_name -> belfast.EQUIPSKIN_INFO
-	2, // 1: belfast.SHIPINFO.state:type_name -> belfast.SHIPSTATE
-	3, // 2: belfast.SHIPINFO.transform_list:type_name -> belfast.TRANSFORM_INFO
-	4, // 3: belfast.SHIPINFO.skill_id_list:type_name -> belfast.SHIPSKILL
-	5, // 4: belfast.SHIPINFO.strength_list:type_name -> belfast.STRENGTH_INFO
-	6, // 5: belfast.SHIPINFO.spweapon:type_name -> belfast.SPWEAPONINFO
-	7, // 6: belfast.SHIPINFO.skin_shadow_list:type_name -> belfast.KVDATA
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	2, // 1: belfast.SHIPINFO.transform_list:type_name -> belfast.TRANSFORM_INFO
+	3, // 2: belfast.SHIPINFO.skill_id_list:type_name -> belfast.SHIPSKILL
+	4, // 3: belfast.SHIPINFO.strength_list:type_name -> belfast.STRENGTH_INFO
+	5, // 4: belfast.SHIPINFO.spweapon:type_name -> belfast.SPWEAPONINFO
+	6, // 5: belfast.SHIPINFO.skin_shadow_list:type_name -> belfast.KVDATA
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_SHIPINFO_proto_init() }
@@ -340,7 +338,6 @@ func file_SHIPINFO_proto_init() {
 	file_EQUIPSKIN_INFO_proto_init()
 	file_KVDATA_proto_init()
 	file_SHIPSKILL_proto_init()
-	file_SHIPSTATE_proto_init()
 	file_SPWEAPONINFO_proto_init()
 	file_STRENGTH_INFO_proto_init()
 	file_TRANSFORM_INFO_proto_init()

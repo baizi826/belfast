@@ -22,12 +22,18 @@ const (
 )
 
 type SC_13001 struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	ChapterList   []*CHAPTERINFO         `protobuf:"bytes,1,rep,name=chapter_list,json=chapterList" json:"chapter_list,omitempty"`
-	ReactChapter  *REACTCHAPTER_INFO     `protobuf:"bytes,2,opt,name=react_chapter,json=reactChapter" json:"react_chapter,omitempty"`
-	FleetList     []*FLEET_INFO          `protobuf:"bytes,3,rep,name=fleet_list,json=fleetList" json:"fleet_list,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	ChapterList           []*CHAPTERINFO         `protobuf:"bytes,1,rep,name=chapter_list,json=chapterList" json:"chapter_list,omitempty"`
+	ReactChapter          *REACTCHAPTER_INFO     `protobuf:"bytes,2,opt,name=react_chapter,json=reactChapter" json:"react_chapter,omitempty"`
+	FleetList             []*FLEET_INFO          `protobuf:"bytes,3,rep,name=fleet_list,json=fleetList" json:"fleet_list,omitempty"`
+	ChapterAutoRecordList []*CHAPTER_AUTO_RECORD `protobuf:"bytes,4,rep,name=chapter_auto_record_list,json=chapterAutoRecordList" json:"chapter_auto_record_list,omitempty"`
+	ChapterAutoTicketList []*CHAPTER_AUTO_TICKET `protobuf:"bytes,5,rep,name=chapter_auto_ticket_list,json=chapterAutoTicketList" json:"chapter_auto_ticket_list,omitempty"`
+	ChapterAutoBattleList []*CHAPTER_AUTO_BATTLE `protobuf:"bytes,6,rep,name=chapter_auto_battle_list,json=chapterAutoBattleList" json:"chapter_auto_battle_list,omitempty"`
+	Oil                   *uint32                `protobuf:"varint,7,req,name=oil" json:"oil,omitempty"`
+	TimeAcc               *uint32                `protobuf:"varint,8,req,name=time_acc,json=timeAcc" json:"time_acc,omitempty"`
+	ExtraTimeMax          *uint32                `protobuf:"varint,9,req,name=extra_time_max,json=extraTimeMax" json:"extra_time_max,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *SC_13001) Reset() {
@@ -81,16 +87,64 @@ func (x *SC_13001) GetFleetList() []*FLEET_INFO {
 	return nil
 }
 
+func (x *SC_13001) GetChapterAutoRecordList() []*CHAPTER_AUTO_RECORD {
+	if x != nil {
+		return x.ChapterAutoRecordList
+	}
+	return nil
+}
+
+func (x *SC_13001) GetChapterAutoTicketList() []*CHAPTER_AUTO_TICKET {
+	if x != nil {
+		return x.ChapterAutoTicketList
+	}
+	return nil
+}
+
+func (x *SC_13001) GetChapterAutoBattleList() []*CHAPTER_AUTO_BATTLE {
+	if x != nil {
+		return x.ChapterAutoBattleList
+	}
+	return nil
+}
+
+func (x *SC_13001) GetOil() uint32 {
+	if x != nil && x.Oil != nil {
+		return *x.Oil
+	}
+	return 0
+}
+
+func (x *SC_13001) GetTimeAcc() uint32 {
+	if x != nil && x.TimeAcc != nil {
+		return *x.TimeAcc
+	}
+	return 0
+}
+
+func (x *SC_13001) GetExtraTimeMax() uint32 {
+	if x != nil && x.ExtraTimeMax != nil {
+		return *x.ExtraTimeMax
+	}
+	return 0
+}
+
 var File_SC_13001_proto protoreflect.FileDescriptor
 
 const file_SC_13001_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_13001.proto\x12\abelfast\x1a\x11CHAPTERINFO.proto\x1a\x10FLEET_INFO.proto\x1a\x17REACTCHAPTER_INFO.proto\"\xb8\x01\n" +
+	"\x0eSC_13001.proto\x12\abelfast\x1a\x11CHAPTERINFO.proto\x1a\x19CHAPTER_AUTO_BATTLE.proto\x1a\x19CHAPTER_AUTO_RECORD.proto\x1a\x19CHAPTER_AUTO_TICKET.proto\x1a\x10FLEET_INFO.proto\x1a\x17REACTCHAPTER_INFO.proto\"\x90\x04\n" +
 	"\bSC_13001\x127\n" +
 	"\fchapter_list\x18\x01 \x03(\v2\x14.belfast.CHAPTERINFOR\vchapterList\x12?\n" +
 	"\rreact_chapter\x18\x02 \x01(\v2\x1a.belfast.REACTCHAPTER_INFOR\freactChapter\x122\n" +
 	"\n" +
-	"fleet_list\x18\x03 \x03(\v2\x13.belfast.FLEET_INFOR\tfleetListB\fZ\n" +
+	"fleet_list\x18\x03 \x03(\v2\x13.belfast.FLEET_INFOR\tfleetList\x12U\n" +
+	"\x18chapter_auto_record_list\x18\x04 \x03(\v2\x1c.belfast.CHAPTER_AUTO_RECORDR\x15chapterAutoRecordList\x12U\n" +
+	"\x18chapter_auto_ticket_list\x18\x05 \x03(\v2\x1c.belfast.CHAPTER_AUTO_TICKETR\x15chapterAutoTicketList\x12U\n" +
+	"\x18chapter_auto_battle_list\x18\x06 \x03(\v2\x1c.belfast.CHAPTER_AUTO_BATTLER\x15chapterAutoBattleList\x12\x10\n" +
+	"\x03oil\x18\a \x02(\rR\x03oil\x12\x19\n" +
+	"\btime_acc\x18\b \x02(\rR\atimeAcc\x12$\n" +
+	"\x0eextra_time_max\x18\t \x02(\rR\fextraTimeMaxB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -107,20 +161,26 @@ func file_SC_13001_proto_rawDescGZIP() []byte {
 
 var file_SC_13001_proto_msgTypes = make([]protoimpl.MessageInfo, 1)
 var file_SC_13001_proto_goTypes = []any{
-	(*SC_13001)(nil),          // 0: belfast.SC_13001
-	(*CHAPTERINFO)(nil),       // 1: belfast.CHAPTERINFO
-	(*REACTCHAPTER_INFO)(nil), // 2: belfast.REACTCHAPTER_INFO
-	(*FLEET_INFO)(nil),        // 3: belfast.FLEET_INFO
+	(*SC_13001)(nil),            // 0: belfast.SC_13001
+	(*CHAPTERINFO)(nil),         // 1: belfast.CHAPTERINFO
+	(*REACTCHAPTER_INFO)(nil),   // 2: belfast.REACTCHAPTER_INFO
+	(*FLEET_INFO)(nil),          // 3: belfast.FLEET_INFO
+	(*CHAPTER_AUTO_RECORD)(nil), // 4: belfast.CHAPTER_AUTO_RECORD
+	(*CHAPTER_AUTO_TICKET)(nil), // 5: belfast.CHAPTER_AUTO_TICKET
+	(*CHAPTER_AUTO_BATTLE)(nil), // 6: belfast.CHAPTER_AUTO_BATTLE
 }
 var file_SC_13001_proto_depIdxs = []int32{
 	1, // 0: belfast.SC_13001.chapter_list:type_name -> belfast.CHAPTERINFO
 	2, // 1: belfast.SC_13001.react_chapter:type_name -> belfast.REACTCHAPTER_INFO
 	3, // 2: belfast.SC_13001.fleet_list:type_name -> belfast.FLEET_INFO
-	3, // [3:3] is the sub-list for method output_type
-	3, // [3:3] is the sub-list for method input_type
-	3, // [3:3] is the sub-list for extension type_name
-	3, // [3:3] is the sub-list for extension extendee
-	0, // [0:3] is the sub-list for field type_name
+	4, // 3: belfast.SC_13001.chapter_auto_record_list:type_name -> belfast.CHAPTER_AUTO_RECORD
+	5, // 4: belfast.SC_13001.chapter_auto_ticket_list:type_name -> belfast.CHAPTER_AUTO_TICKET
+	6, // 5: belfast.SC_13001.chapter_auto_battle_list:type_name -> belfast.CHAPTER_AUTO_BATTLE
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_SC_13001_proto_init() }
@@ -129,6 +189,9 @@ func file_SC_13001_proto_init() {
 		return
 	}
 	file_CHAPTERINFO_proto_init()
+	file_CHAPTER_AUTO_BATTLE_proto_init()
+	file_CHAPTER_AUTO_RECORD_proto_init()
+	file_CHAPTER_AUTO_TICKET_proto_init()
 	file_FLEET_INFO_proto_init()
 	file_REACTCHAPTER_INFO_proto_init()
 	type x struct{}

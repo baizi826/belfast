@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -44,6 +45,14 @@ func updateAllDataSQLC(region string) {
 			}
 			logger.LogEvent("GameData", "Updating", fmt.Sprintf("Updating %s (region=%s)", key, region), logger.LOG_LEVEL_INFO)
 			if err := fn(ctx, region, q); err != nil {
+				// The juustagram tables are a decorative feature whose shapes drift between
+				// data versions; one unmarshal mismatch there must not roll back the entire
+				// upgrade (measured 2026-09-30: it aborted right after Configs had already
+				// imported all 655 tables, wasting a ten minute run).
+				if strings.HasPrefix(key, "Juustagram") {
+					logger.LogEvent("GameData", "Updating", fmt.Sprintf("skipping %s: %v", key, err), logger.LOG_LEVEL_WARN)
+					continue
+				}
 				return err
 			}
 		}
@@ -235,6 +244,10 @@ func importPoolsSQLC(ctx context.Context, region string, q *gen.Queries) error {
 	}
 	defer resp.Body.Close()
 	decoder.Token()
+	// build_pools.json 是**无区的**（跟着最新区走），而 CN 的数据版本比客户端旧一档，
+	// 池子里会引用 CN 船表里没有的船。这种情况**跳过并告警**，不能让整次数据导入挂样。
+	// 手抄自上游未合并分支 fix/gamedata-missing-ships 的 commit 70f6d6d4。
+	skippedMissingShips := 0
 	for decoder.More() {
 		var pool struct {
 			ID   uint32 `json:"id"`
@@ -251,8 +264,17 @@ func importPoolsSQLC(ctx context.Context, region string, q *gen.Queries) error {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("ship not found for template_id=%d", pool.ID)
+			skippedMissingShips++
+			logger.LogEvent("GameData", "Updating",
+				fmt.Sprintf("skipping pool mapping for missing ship template_id=%d (region=%s)", pool.ID, region),
+				logger.LOG_LEVEL_WARN)
+			continue
 		}
+	}
+	if skippedMissingShips > 0 {
+		logger.LogEvent("GameData", "Updating",
+			fmt.Sprintf("skipped %d pool mappings because ship templates were missing (region=%s)", skippedMissingShips, region),
+			logger.LOG_LEVEL_WARN)
 	}
 	return nil
 }
@@ -285,6 +307,8 @@ func importBuildTimesSQLC(ctx context.Context, region string, q *gen.Queries) er
 	if err := decoder.Decode(&buildTimes); err != nil {
 		return err
 	}
+	// 同上：build_times.json 也是无区的，缺船时跳过而不是直接失败
+	skippedMissingShips := 0
 	for id, timeValue := range buildTimes {
 		parsed, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
@@ -298,8 +322,17 @@ func importBuildTimesSQLC(ctx context.Context, region string, q *gen.Queries) er
 			return err
 		}
 		if tag.RowsAffected() == 0 {
-			return fmt.Errorf("ship not found for template_id=%s", id)
+			skippedMissingShips++
+			logger.LogEvent("GameData", "Updating",
+				fmt.Sprintf("skipping build time for missing ship template_id=%s (region=%s)", id, region),
+				logger.LOG_LEVEL_WARN)
+			continue
 		}
+	}
+	if skippedMissingShips > 0 {
+		logger.LogEvent("GameData", "Updating",
+			fmt.Sprintf("skipped %d build times because ship templates were missing (region=%s)", skippedMissingShips, region),
+			logger.LOG_LEVEL_WARN)
 	}
 	return nil
 }
@@ -496,6 +529,11 @@ func importConfigEntriesSQLC(ctx context.Context, region string, q *gen.Queries)
 			"sharecfgdata/chapter_template.json",
 			"sharecfgdata/chapter_template_loop.json",
 			"sharecfgdata/ship_data_template.json",
+			// 缺了这行 ⇒ ship_data_breakout 整类不进库 ⇒ ValidateOwnedShipTemplateID 对任何船
+			// 都报 db: not found ⇒ 领船必失败（2026-09-30 实测卡在建造）。上游选择性下载模式也靠它。
+			"sharecfgdata/ship_data_breakout.json",
+			// 同理：装备回溯/升级走 GetConfigEntry 读它，不在名单里就整类缺失。
+			"sharecfgdata/equip_data_statistics.json",
 			"ShareCfg/item_data_frame.json",
 			"ShareCfg/item_data_chat.json",
 			"ShareCfg/item_data_battleui.json",
@@ -534,6 +572,23 @@ func importConfigEntriesSQLC(ctx context.Context, region string, q *gen.Queries)
 	gameCfgFiles = filterConfigFiles(gameCfgFiles, nil, []string{
 		"GameCfg/dorm.json",
 	})
+	// 本地镜像模式（BELFAST_DATA_DIR）：磁盘上有什么就导什么。
+	// 上面那份白名单是给「上游按需下载」用的，只覆盖代码引用的一小部分 category；
+	// 实测缺 59 类（gameset、equip_data_template、drop_data_template、island_* …），
+	// 每缺一类就是一个功能报 db: not found。本地镜像里文件都在，没必要再筛。
+	if belfastDataDir() != "" {
+		for _, dir := range []string{"ShareCfg", "sharecfgdata", "GameCfg"} {
+			extra, err := listBelfastDataFiles(region, dir)
+			if err != nil {
+				return err
+			}
+			if dir == "GameCfg" {
+				gameCfgFiles = append(gameCfgFiles, extra...)
+			} else {
+				shareCfgFiles = append(shareCfgFiles, extra...)
+			}
+		}
+	}
 	for _, file := range append(shareCfgFiles, gameCfgFiles...) {
 		if err := importConfigEntriesFromFileSQLC(ctx, region, file, q); err != nil {
 			return err

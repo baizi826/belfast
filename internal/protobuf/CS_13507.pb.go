@@ -25,6 +25,7 @@ type CS_13507 struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ChapterId     *uint32                `protobuf:"varint,1,req,name=chapter_id,json=chapterId" json:"chapter_id,omitempty"`
 	Pos           *uint32                `protobuf:"varint,2,req,name=pos" json:"pos,omitempty"`
+	ActId         *uint32                `protobuf:"varint,3,req,name=act_id,json=actId" json:"act_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,15 +74,23 @@ func (x *CS_13507) GetPos() uint32 {
 	return 0
 }
 
+func (x *CS_13507) GetActId() uint32 {
+	if x != nil && x.ActId != nil {
+		return *x.ActId
+	}
+	return 0
+}
+
 var File_CS_13507_proto protoreflect.FileDescriptor
 
 const file_CS_13507_proto_rawDesc = "" +
 	"\n" +
-	"\x0eCS_13507.proto\x12\abelfast\";\n" +
+	"\x0eCS_13507.proto\x12\abelfast\"R\n" +
 	"\bCS_13507\x12\x1d\n" +
 	"\n" +
 	"chapter_id\x18\x01 \x02(\rR\tchapterId\x12\x10\n" +
-	"\x03pos\x18\x02 \x02(\rR\x03posB\fZ\n" +
+	"\x03pos\x18\x02 \x02(\rR\x03pos\x12\x15\n" +
+	"\x06act_id\x18\x03 \x02(\rR\x05actIdB\fZ\n" +
 	"./protobuf"
 
 var (

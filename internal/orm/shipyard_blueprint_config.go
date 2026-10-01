@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/ggmolly/belfast/internal/db"
 )
@@ -18,17 +19,38 @@ const (
 	itemStatisticsCategoryShipyardAlt = "ShareCfg/item_data_statistics.json"
 )
 
+// BlueprintIDList 容忍 []uint32 与 {} 两种形态（与 ShipBreakoutItems / TechnologyRows 同因同治）。
+// 9.7 的 ShareCfg/ship_data_blueprint.json 里 fate_strengthen（14 行）与 gain_item_id（24 行）
+// 是空对象（Lua 空表被 tools/lua2json.py 写成 {}），直接解进 []uint32 会报
+// "cannot unmarshal object into Go struct field ShipDataBlueprintConfig.*"，
+// handler 把 error 往上抛 ⇒ client.CloseWithError reset 整条连接。
+type BlueprintIDList []uint32
+
+func (s *BlueprintIDList) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed[0] != '[' {
+		*s = nil // {} / null / 其它非数组形态一律当空
+		return nil
+	}
+	var v []uint32
+	if err := json.Unmarshal([]byte(trimmed), &v); err != nil {
+		return err
+	}
+	*s = v
+	return nil
+}
+
 type ShipDataBlueprintConfig struct {
-	ID                      uint32     `json:"id"`
-	BlueprintVersion        uint32     `json:"blueprint_version"`
-	UnlockTaskOpenCondition []uint32   `json:"unlock_task_open_condition"`
-	UnlockTask              [][]uint32 `json:"unlock_task"`
-	StrengthenEffect        []uint32   `json:"strengthen_effect"`
-	FateStrengthen          []uint32   `json:"fate_strengthen"`
-	StrengthenItem          uint32     `json:"strengthen_item"`
-	GainItemID              []uint32   `json:"gain_item_id"`
-	IsPursuing              uint32     `json:"is_pursuing"`
-	Price                   uint32     `json:"price"`
+	ID                      uint32          `json:"id"`
+	BlueprintVersion        uint32          `json:"blueprint_version"`
+	UnlockTaskOpenCondition []uint32        `json:"unlock_task_open_condition"`
+	UnlockTask              [][]uint32      `json:"unlock_task"`
+	StrengthenEffect        []uint32        `json:"strengthen_effect"`
+	FateStrengthen          BlueprintIDList `json:"fate_strengthen"`
+	StrengthenItem          uint32          `json:"strengthen_item"`
+	GainItemID              BlueprintIDList `json:"gain_item_id"`
+	IsPursuing              uint32          `json:"is_pursuing"`
+	Price                   uint32          `json:"price"`
 }
 
 func (c *ShipDataBlueprintConfig) ShipTemplateID() uint32 {

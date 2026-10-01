@@ -71,6 +71,10 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		MailStoreroomLv: proto.Uint32(client.Commander.MailStoreroomLv),
 		BattleUi:        proto.Uint32(client.Commander.SelectedBattleUIID),
 		NewGuideIndex:   proto.Uint32(client.Commander.NewGuideIndex),
+		// 9.7 客户端新增的 required 字段：不填 ⇒ proto.Marshal 报
+		// "required field SC_11003.loading_pic_open_flag not set" ⇒ 登录连接被 reset。
+		// 0 = 不使用自定义加载图（客户端走默认加载图）；两个 id 列表是 repeated，不设不会报错。
+		LoadingPicOpenFlag: proto.Uint32(0),
 	}
 	if response.GetMailStoreroomLv() == 0 {
 		response.MailStoreroomLv = proto.Uint32(1)

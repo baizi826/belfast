@@ -75,6 +75,9 @@ type SC_11003 struct {
 	BattleUi                  *uint32                `protobuf:"varint,50,req,name=battle_ui,json=battleUi" json:"battle_ui,omitempty"`
 	ActivityMedals            []*KVDATA              `protobuf:"bytes,51,rep,name=activity_medals,json=activityMedals" json:"activity_medals,omitempty"`
 	NewGuideIndex             *uint32                `protobuf:"varint,52,req,name=new_guide_index,json=newGuideIndex" json:"new_guide_index,omitempty"`
+	LoadingPicOpenFlag        *uint32                `protobuf:"varint,53,req,name=loading_pic_open_flag,json=loadingPicOpenFlag" json:"loading_pic_open_flag,omitempty"`
+	LoadingPicIdList_1        []uint32               `protobuf:"varint,54,rep,name=loading_pic_id_list_1,json=loadingPicIdList1" json:"loading_pic_id_list_1,omitempty"`
+	LoadingPicIdList_2        []uint32               `protobuf:"varint,55,rep,name=loading_pic_id_list_2,json=loadingPicIdList2" json:"loading_pic_id_list_2,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache
 }
@@ -473,11 +476,32 @@ func (x *SC_11003) GetNewGuideIndex() uint32 {
 	return 0
 }
 
+func (x *SC_11003) GetLoadingPicOpenFlag() uint32 {
+	if x != nil && x.LoadingPicOpenFlag != nil {
+		return *x.LoadingPicOpenFlag
+	}
+	return 0
+}
+
+func (x *SC_11003) GetLoadingPicIdList_1() []uint32 {
+	if x != nil {
+		return x.LoadingPicIdList_1
+	}
+	return nil
+}
+
+func (x *SC_11003) GetLoadingPicIdList_2() []uint32 {
+	if x != nil {
+		return x.LoadingPicIdList_2
+	}
+	return nil
+}
+
 var File_SC_11003_proto protoreflect.FileDescriptor
 
 const file_SC_11003_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_11003.proto\x12\abelfast\x1a\x16APPRECIATIONINFO.proto\x1a\x0eCARDINFO.proto\x1a\x0eCOOLDOWN.proto\x1a\x11DISPLAYINFO.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x16LIVINGAREA_COVER.proto\x1a\x15REFUND_SHOPINFO.proto\x1a\x0eRESOURCE.proto\x1a\x16SHIP_TAKING_DATA.proto\"\x90\x10\n" +
+	"\x0eSC_11003.proto\x12\abelfast\x1a\x16APPRECIATIONINFO.proto\x1a\x0eCARDINFO.proto\x1a\x0eCOOLDOWN.proto\x1a\x11DISPLAYINFO.proto\x1a\x10IDTIMEINFO.proto\x1a\fKVDATA.proto\x1a\x16LIVINGAREA_COVER.proto\x1a\x15REFUND_SHOPINFO.proto\x1a\x0eRESOURCE.proto\x1a\x16SHIP_TAKING_DATA.proto\"\xa7\x11\n" +
 	"\bSC_11003\x12\x0e\n" +
 	"\x02id\x18\x01 \x02(\rR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x02(\tR\x04name\x12\x14\n" +
@@ -540,7 +564,10 @@ const file_SC_11003_proto_rawDesc = "" +
 	"\x0ebattle_ui_list\x181 \x03(\rR\fbattleUiList\x12\x1b\n" +
 	"\tbattle_ui\x182 \x02(\rR\bbattleUi\x128\n" +
 	"\x0factivity_medals\x183 \x03(\v2\x0f.belfast.KVDATAR\x0eactivityMedals\x12&\n" +
-	"\x0fnew_guide_index\x184 \x02(\rR\rnewGuideIndexB\fZ\n" +
+	"\x0fnew_guide_index\x184 \x02(\rR\rnewGuideIndex\x121\n" +
+	"\x15loading_pic_open_flag\x185 \x02(\rR\x12loadingPicOpenFlag\x120\n" +
+	"\x15loading_pic_id_list_1\x186 \x03(\rR\x11loadingPicIdList1\x120\n" +
+	"\x15loading_pic_id_list_2\x187 \x03(\rR\x11loadingPicIdList2B\fZ\n" +
 	"./protobuf"
 
 var (

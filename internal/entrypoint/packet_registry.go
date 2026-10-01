@@ -31,6 +31,9 @@ func registerPackets() {
 	packets.RegisterPacketHandler(10022, []packets.PacketHandler{answer.JoinServer})
 	packets.RegisterPacketHandler(10024, []packets.PacketHandler{answer.CreateNewPlayer})
 	packets.RegisterPacketHandler(10026, []packets.PacketHandler{answer.PlayerExist})
+	// CS_23430 is part of the first-login handshake and has no upstream implementation;
+	// it is answered from a captured official SC_23431 (see answer/packet_23430.go).
+	packets.RegisterPacketHandler(23430, []packets.PacketHandler{answer.HandleLegacy23430})
 	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
 		answer.LastLogin,
 		answer.PlayerInfo,
@@ -653,6 +656,8 @@ func registerPackets() {
 	packets.RegisterPacketHandler(19020, []packets.PacketHandler{answer.SaveDormTheme})
 	packets.RegisterPacketHandler(19022, []packets.PacketHandler{answer.DeleteDormTheme})
 	packets.RegisterPacketHandler(19024, []packets.PacketHandler{answer.GetBackyardVisitor})
+	// 19026/19027：客户端从后宅回主界面时发的状态同步。上游没实现 ⇒ 卡加载页（见 dorm_data.go: DormExpSync）
+	packets.RegisterPacketHandler(19026, []packets.PacketHandler{answer.DormExpSync})
 	// Backyard theme templates (191xx)
 	packets.RegisterPacketHandler(19101, []packets.PacketHandler{answer.VisitBackyard})
 	packets.RegisterPacketHandler(19103, []packets.PacketHandler{answer.GetThemeUploadCredentials})

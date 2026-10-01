@@ -24,7 +24,7 @@ const (
 type SC_11210 struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
 	PermanentActivity []uint32               `protobuf:"varint,1,rep,name=permanent_activity,json=permanentActivity" json:"permanent_activity,omitempty"`
-	PermanentNow      *uint32                `protobuf:"varint,2,req,name=permanent_now,json=permanentNow" json:"permanent_now,omitempty"`
+	PermanentNow      []uint32               `protobuf:"varint,2,rep,name=permanent_now,json=permanentNow" json:"permanent_now,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -66,11 +66,11 @@ func (x *SC_11210) GetPermanentActivity() []uint32 {
 	return nil
 }
 
-func (x *SC_11210) GetPermanentNow() uint32 {
-	if x != nil && x.PermanentNow != nil {
-		return *x.PermanentNow
+func (x *SC_11210) GetPermanentNow() []uint32 {
+	if x != nil {
+		return x.PermanentNow
 	}
-	return 0
+	return nil
 }
 
 var File_SC_11210_proto protoreflect.FileDescriptor
@@ -80,7 +80,7 @@ const file_SC_11210_proto_rawDesc = "" +
 	"\x0eSC_11210.proto\x12\abelfast\"^\n" +
 	"\bSC_11210\x12-\n" +
 	"\x12permanent_activity\x18\x01 \x03(\rR\x11permanentActivity\x12#\n" +
-	"\rpermanent_now\x18\x02 \x02(\rR\fpermanentNowB\fZ\n" +
+	"\rpermanent_now\x18\x02 \x03(\rR\fpermanentNowB\fZ\n" +
 	"./protobuf"
 
 var (

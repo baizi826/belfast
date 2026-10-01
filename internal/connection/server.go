@@ -429,10 +429,19 @@ func SendProtoMessage(packetId int, client *Client, message any) (int, int, erro
 	}
 	data, err := proto.Marshal(message.(proto.Message))
 	if err != nil {
-		logger.LogEvent("Connection", "Marshal", fmt.Sprintf("SC_%d -> %v", packetId, err), logger.LOG_LEVEL_ERROR)
-		client.RecordHandlerError()
-		client.CloseWithError(err)
-		return 0, packetId, err
+		// 9.7 客户端新加了一批 required 字段（SC_11003.loading_pic_open_flag、SC_13001.oil …），
+		// proto2 的 required 未设 ⇒ proto.Marshal 直接报错。以前这里顺手 CloseWithError 把整条连接
+		// 掐掉：一个字段没填就掉线（实测登录立刻被 reset）。改成降级发包 + WARN。
+		// ⚠ WARN 不是"没关系"，是待办清单：客户端对缺 required 的包可能自己丢弃 ⇒ 照它逐个补值。
+		if partial, perr := (proto.MarshalOptions{AllowPartial: true}).Marshal(message.(proto.Message)); perr == nil {
+			logger.LogEvent("Connection", "MarshalPartial", fmt.Sprintf("SC_%d -> %v", packetId, err), logger.LOG_LEVEL_WARN)
+			data = partial
+		} else {
+			logger.LogEvent("Connection", "Marshal", fmt.Sprintf("SC_%d -> %v", packetId, err), logger.LOG_LEVEL_ERROR)
+			client.RecordHandlerError()
+			client.CloseWithError(err)
+			return 0, packetId, err
+		}
 	}
 	debug.InsertPacket(packetId, &data)
 	InjectPacketHeader(packetId, &data, client.PacketIndex)

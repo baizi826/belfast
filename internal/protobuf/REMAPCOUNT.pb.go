@@ -27,6 +27,7 @@ type REMAPCOUNT struct {
 	Pos           *uint32                `protobuf:"varint,2,req,name=pos" json:"pos,omitempty"`
 	Count         *uint32                `protobuf:"varint,3,req,name=count" json:"count,omitempty"`
 	Flag          *uint32                `protobuf:"varint,4,req,name=flag" json:"flag,omitempty"`
+	ActId         *uint32                `protobuf:"varint,5,req,name=act_id,json=actId" json:"act_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -89,18 +90,26 @@ func (x *REMAPCOUNT) GetFlag() uint32 {
 	return 0
 }
 
+func (x *REMAPCOUNT) GetActId() uint32 {
+	if x != nil && x.ActId != nil {
+		return *x.ActId
+	}
+	return 0
+}
+
 var File_REMAPCOUNT_proto protoreflect.FileDescriptor
 
 const file_REMAPCOUNT_proto_rawDesc = "" +
 	"\n" +
-	"\x10REMAPCOUNT.proto\x12\abelfast\"g\n" +
+	"\x10REMAPCOUNT.proto\x12\abelfast\"~\n" +
 	"\n" +
 	"REMAPCOUNT\x12\x1d\n" +
 	"\n" +
 	"chapter_id\x18\x01 \x02(\rR\tchapterId\x12\x10\n" +
 	"\x03pos\x18\x02 \x02(\rR\x03pos\x12\x14\n" +
 	"\x05count\x18\x03 \x02(\rR\x05count\x12\x12\n" +
-	"\x04flag\x18\x04 \x02(\rR\x04flagB\fZ\n" +
+	"\x04flag\x18\x04 \x02(\rR\x04flag\x12\x15\n" +
+	"\x06act_id\x18\x05 \x02(\rR\x05actIdB\fZ\n" +
 	"./protobuf"
 
 var (

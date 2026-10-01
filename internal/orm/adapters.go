@@ -40,20 +40,16 @@ func toProtoOwnedShipWithRepairs(ship OwnedShip, randomFlags []uint32, shadowSki
 	transformInfo := buildTransformInfoList(ship.Transforms)
 	strengthInfo := buildStrengthInfoList(ship.Strengths)
 	skinShadowList := buildSkinShadowList(shadowSkins)
+	// 9.7 客户端把 SHIPINFO.state 拍平成 uint32（CN/EN/JP/KR/TW 五区描述符均 type=13，无 message_type），
+	// 客户端里已不存在 SHIPSTATE 消息。原先嵌套的 StateInfo1..4 只作为 dorm 记账留在 DB，不上线。
 	return &protobuf.SHIPINFO{
 		Id:            proto.Uint32(ship.ID),
 		TemplateId:    proto.Uint32(ship.ShipID),
 		Level:         proto.Uint32(ship.Level),
 		Exp:           proto.Uint32(ship.Exp),
 		EquipInfoList: equipInfo,
-		Energy:        proto.Uint32(ship.Energy),
-		State: &protobuf.SHIPSTATE{
-			State:       proto.Uint32(ship.State),
-			StateInfo_1: proto.Uint32(ship.StateInfo1),
-			StateInfo_2: proto.Uint32(ship.StateInfo2),
-			StateInfo_3: proto.Uint32(ship.StateInfo3),
-			StateInfo_4: proto.Uint32(ship.StateInfo4),
-		},
+		Energy:               proto.Uint32(ship.Energy),
+		State:                proto.Uint32(ship.State),
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
 		TransformList:       transformInfo,
 		Intimacy:            proto.Uint32(ship.Intimacy),

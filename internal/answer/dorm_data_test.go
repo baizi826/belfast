@@ -112,12 +112,12 @@ VALUES ($1, $2, $3, $4, $5)
 	if response.GetFloorNum() != 2 {
 		t.Fatalf("expected floor_num=2, got %d", response.GetFloorNum())
 	}
-	if len(response.GetShipIdList()) != 1 {
-		t.Fatalf("expected 1 dorm ship, got %d", len(response.GetShipIdList()))
+	if len(response.GetShipList()) != 1 {
+		t.Fatalf("expected 1 dorm ship, got %d", len(response.GetShipList()))
 	}
-	ship := response.GetShipIdList()[0]
-	if ship.GetId() != targetShipID || ship.GetTid() != shipTemplateID || ship.GetState() != 2 || ship.GetSkinId() != 1234 {
-		t.Fatalf("unexpected ship projection id=%d tid=%d state=%d skin=%d", ship.GetId(), ship.GetTid(), ship.GetState(), ship.GetSkinId())
+	ship := response.GetShipList()[0]
+	if ship.GetId() != targetShipID || ship.GetTid() != shipTemplateID || ship.GetPopIcon() != 2 || ship.GetSkinId() != 1234 {
+		t.Fatalf("unexpected ship projection id=%d tid=%d popIcon=%d skin=%d", ship.GetId(), ship.GetTid(), ship.GetPopIcon(), ship.GetSkinId())
 	}
 	if len(response.GetFurnitureIdList()) != 1 {
 		t.Fatalf("expected 1 furniture info, got %d", len(response.GetFurnitureIdList()))
@@ -150,8 +150,8 @@ func TestVisitBackyardEmptyDorm(t *testing.T) {
 	if response.GetName() != targetName {
 		t.Fatalf("expected target name %q, got %q", targetName, response.GetName())
 	}
-	if len(response.GetShipIdList()) != 0 {
-		t.Fatalf("expected empty ship list, got %d", len(response.GetShipIdList()))
+	if len(response.GetShipList()) != 0 {
+		t.Fatalf("expected empty ship list, got %d", len(response.GetShipList()))
 	}
 	if len(response.GetFurnitureIdList()) != 0 {
 		t.Fatalf("expected empty furniture list, got %d", len(response.GetFurnitureIdList()))

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -49,14 +50,36 @@ type TechnologyQueueState struct {
 	FinishTime uint32 `json:"finish_time"`
 }
 
+// TechnologyRows 容忍 [][]uint32 与 {} 两种形态（与 ShipBreakoutItems / chapterTemplate 同因同治）。
+// 9.7 的 ShareCfg/technology_data_template.json 里有整行是空表 ⇒ consume/drop_client 被
+// tools/lua2json.py 写成 {}，直接解进 [][]uint32 会报
+// "cannot unmarshal object into Go struct field TechnologyDataTemplate.consume of type [][]uint32"，
+// handler 把 error 往上抛 ⇒ client.CloseWithError reset 整条连接
+// （实测 SC_63010 一进科研项目就掉线，连主界面都进不去）。
+type TechnologyRows [][]uint32
+
+func (s *TechnologyRows) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed[0] != '[' {
+		*s = nil // {} / null / 其它非数组形态一律当空
+		return nil
+	}
+	var v [][]uint32
+	if err := json.Unmarshal([]byte(trimmed), &v); err != nil {
+		return err
+	}
+	*s = v
+	return nil
+}
+
 type TechnologyDataTemplate struct {
-	ID               uint32     `json:"id"`
-	Type             uint32     `json:"type"`
-	Time             uint32     `json:"time"`
-	Condition        uint32     `json:"condition"`
-	BlueprintVersion uint32     `json:"blueprint_version"`
-	Consume          [][]uint32 `json:"consume"`
-	DropClient       [][]uint32 `json:"drop_client"`
+	ID               uint32         `json:"id"`
+	Type             uint32         `json:"type"`
+	Time             uint32         `json:"time"`
+	Condition        uint32         `json:"condition"`
+	BlueprintVersion uint32         `json:"blueprint_version"`
+	Consume          TechnologyRows `json:"consume"`
+	DropClient       TechnologyRows `json:"drop_client"`
 }
 
 func GetTechnologyResearchState(commanderID uint32) (*TechnologyResearchState, error) {

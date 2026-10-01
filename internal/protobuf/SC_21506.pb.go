@@ -28,6 +28,8 @@ type SC_21506 struct {
 	GetTimes      *uint32                `protobuf:"varint,3,req,name=get_times,json=getTimes" json:"get_times,omitempty"`
 	PtAward       *uint32                `protobuf:"varint,4,req,name=pt_award,json=ptAward" json:"pt_award,omitempty"`
 	FormulaId     *uint32                `protobuf:"varint,5,req,name=formula_id,json=formulaId" json:"formula_id,omitempty"`
+	RestTimeList  []uint32               `protobuf:"varint,6,rep,name=rest_time_list,json=restTimeList" json:"rest_time_list,omitempty"`
+	StartTime     *uint32                `protobuf:"varint,7,req,name=start_time,json=startTime" json:"start_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -97,18 +99,35 @@ func (x *SC_21506) GetFormulaId() uint32 {
 	return 0
 }
 
+func (x *SC_21506) GetRestTimeList() []uint32 {
+	if x != nil {
+		return x.RestTimeList
+	}
+	return nil
+}
+
+func (x *SC_21506) GetStartTime() uint32 {
+	if x != nil && x.StartTime != nil {
+		return *x.StartTime
+	}
+	return 0
+}
+
 var File_SC_21506_proto protoreflect.FileDescriptor
 
 const file_SC_21506_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_21506.proto\x12\abelfast\x1a\x0eDROPINFO.proto\"\xa9\x01\n" +
+	"\x0eSC_21506.proto\x12\abelfast\x1a\x0eDROPINFO.proto\"\xee\x01\n" +
 	"\bSC_21506\x12\x16\n" +
 	"\x06result\x18\x01 \x02(\rR\x06result\x12.\n" +
 	"\tdrop_list\x18\x02 \x03(\v2\x11.belfast.DROPINFOR\bdropList\x12\x1b\n" +
 	"\tget_times\x18\x03 \x02(\rR\bgetTimes\x12\x19\n" +
 	"\bpt_award\x18\x04 \x02(\rR\aptAward\x12\x1d\n" +
 	"\n" +
-	"formula_id\x18\x05 \x02(\rR\tformulaIdB\fZ\n" +
+	"formula_id\x18\x05 \x02(\rR\tformulaId\x12$\n" +
+	"\x0erest_time_list\x18\x06 \x03(\rR\frestTimeList\x12\x1d\n" +
+	"\n" +
+	"start_time\x18\a \x02(\rR\tstartTimeB\fZ\n" +
 	"./protobuf"
 
 var (

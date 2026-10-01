@@ -28,6 +28,7 @@ type PB_ISLAND_SHIP_SYS struct {
 	HadDress      []*PB_ISLAND_DRESS_NUM `protobuf:"bytes,3,rep,name=had_dress,json=hadDress" json:"had_dress,omitempty"`
 	WearList      []*PB_ISLAND_SHIP_WEAR `protobuf:"bytes,4,rep,name=wear_list,json=wearList" json:"wear_list,omitempty"`
 	SkinList      []*PB_ISLAND_SHIP_SKIN `protobuf:"bytes,5,rep,name=skin_list,json=skinList" json:"skin_list,omitempty"`
+	GameShipList  []*PB_GAME_TYPE_SHIP   `protobuf:"bytes,6,rep,name=game_ship_list,json=gameShipList" json:"game_ship_list,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -97,18 +98,26 @@ func (x *PB_ISLAND_SHIP_SYS) GetSkinList() []*PB_ISLAND_SHIP_SKIN {
 	return nil
 }
 
+func (x *PB_ISLAND_SHIP_SYS) GetGameShipList() []*PB_GAME_TYPE_SHIP {
+	if x != nil {
+		return x.GameShipList
+	}
+	return nil
+}
+
 var File_PB_ISLAND_SHIP_SYS_proto protoreflect.FileDescriptor
 
 const file_PB_ISLAND_SHIP_SYS_proto_rawDesc = "" +
 	"\n" +
-	"\x18PB_ISLAND_SHIP_SYS.proto\x12\abelfast\x1a\x19PB_ISLAND_DRESS_NUM.proto\x1a\x14PB_ISLAND_SHIP.proto\x1a\x19PB_ISLAND_SHIP_SKIN.proto\x1a\x19PB_ISLAND_SHIP_WEAR.proto\"\x9c\x02\n" +
+	"\x18PB_ISLAND_SHIP_SYS.proto\x12\abelfast\x1a\x17PB_GAME_TYPE_SHIP.proto\x1a\x19PB_ISLAND_DRESS_NUM.proto\x1a\x14PB_ISLAND_SHIP.proto\x1a\x19PB_ISLAND_SHIP_SKIN.proto\x1a\x19PB_ISLAND_SHIP_WEAR.proto\"\xde\x02\n" +
 	"\x12PB_ISLAND_SHIP_SYS\x12\x1f\n" +
 	"\vinvite_list\x18\x01 \x03(\rR\n" +
 	"inviteList\x124\n" +
 	"\tship_list\x18\x02 \x03(\v2\x17.belfast.PB_ISLAND_SHIPR\bshipList\x129\n" +
 	"\thad_dress\x18\x03 \x03(\v2\x1c.belfast.PB_ISLAND_DRESS_NUMR\bhadDress\x129\n" +
 	"\twear_list\x18\x04 \x03(\v2\x1c.belfast.PB_ISLAND_SHIP_WEARR\bwearList\x129\n" +
-	"\tskin_list\x18\x05 \x03(\v2\x1c.belfast.PB_ISLAND_SHIP_SKINR\bskinListB\fZ\n" +
+	"\tskin_list\x18\x05 \x03(\v2\x1c.belfast.PB_ISLAND_SHIP_SKINR\bskinList\x12@\n" +
+	"\x0egame_ship_list\x18\x06 \x03(\v2\x1a.belfast.PB_GAME_TYPE_SHIPR\fgameShipListB\fZ\n" +
 	"./protobuf"
 
 var (
@@ -130,17 +139,19 @@ var file_PB_ISLAND_SHIP_SYS_proto_goTypes = []any{
 	(*PB_ISLAND_DRESS_NUM)(nil), // 2: belfast.PB_ISLAND_DRESS_NUM
 	(*PB_ISLAND_SHIP_WEAR)(nil), // 3: belfast.PB_ISLAND_SHIP_WEAR
 	(*PB_ISLAND_SHIP_SKIN)(nil), // 4: belfast.PB_ISLAND_SHIP_SKIN
+	(*PB_GAME_TYPE_SHIP)(nil),   // 5: belfast.PB_GAME_TYPE_SHIP
 }
 var file_PB_ISLAND_SHIP_SYS_proto_depIdxs = []int32{
 	1, // 0: belfast.PB_ISLAND_SHIP_SYS.ship_list:type_name -> belfast.PB_ISLAND_SHIP
 	2, // 1: belfast.PB_ISLAND_SHIP_SYS.had_dress:type_name -> belfast.PB_ISLAND_DRESS_NUM
 	3, // 2: belfast.PB_ISLAND_SHIP_SYS.wear_list:type_name -> belfast.PB_ISLAND_SHIP_WEAR
 	4, // 3: belfast.PB_ISLAND_SHIP_SYS.skin_list:type_name -> belfast.PB_ISLAND_SHIP_SKIN
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 4: belfast.PB_ISLAND_SHIP_SYS.game_ship_list:type_name -> belfast.PB_GAME_TYPE_SHIP
+	5, // [5:5] is the sub-list for method output_type
+	5, // [5:5] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_PB_ISLAND_SHIP_SYS_proto_init() }
@@ -148,6 +159,7 @@ func file_PB_ISLAND_SHIP_SYS_proto_init() {
 	if File_PB_ISLAND_SHIP_SYS_proto != nil {
 		return
 	}
+	file_PB_GAME_TYPE_SHIP_proto_init()
 	file_PB_ISLAND_DRESS_NUM_proto_init()
 	file_PB_ISLAND_SHIP_proto_init()
 	file_PB_ISLAND_SHIP_SKIN_proto_init()

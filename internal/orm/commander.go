@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
@@ -587,8 +588,44 @@ DO UPDATE SET amount = owned_resources.amount + EXCLUDED.amount
 	return nil
 }
 
+// itemCatalogExec covers both *pgxpool.Pool and pgx.Tx so AddItem and AddItemTx can share
+// the same catalog backfill.
+type itemCatalogExec interface {
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+}
+
+// ensureItemCatalogEntry makes sure items has this id.
+//
+// commander_items.item_id has a foreign key to items(id), but the data mirror's chapter
+// awards reference item ids the item table does not contain - 1-1 awards 56001/54011/54021/
+// 59001 and the 9.6 item_data_statistics.json has none of them (verified 2026-09-30). The
+// missing row makes the grant fail on the foreign key, and Dispatch closes the whole
+// connection on any handler error, so the client could not settle a battle at all.
+// Backfilling a minimal catalog row keeps the reward instead of dropping it; the client
+// renders item names/icons from its own resources, the server only has to track counts.
+//
+// ponytail: synthesised catalog row, not real data. Real entries replace it once the 9.7
+// data set (built from AzurLaneLuaScripts) is in place.
+func (c *Commander) ensureItemCatalogEntry(ctx context.Context, exec itemCatalogExec, itemId uint32) error {
+	tag, err := exec.Exec(ctx, `
+INSERT INTO items (id, name, rarity, type, virtual_type)
+VALUES ($1, $2, 1, 0, 0)
+ON CONFLICT (id) DO NOTHING
+`, int64(itemId), fmt.Sprintf("unknown item %d", itemId))
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() > 0 {
+		logger.LogEvent("ORM", "AddItem", fmt.Sprintf("synthesised missing item catalog row id=%d", itemId), logger.LOG_LEVEL_WARN)
+	}
+	return nil
+}
+
 func (c *Commander) AddItem(itemId uint32, amount uint32) error {
 	ctx := context.Background()
+	if err := c.ensureItemCatalogEntry(ctx, db.DefaultStore.Pool, itemId); err != nil {
+		return err
+	}
 	_, err := db.DefaultStore.Pool.Exec(ctx, `
 INSERT INTO commander_items (commander_id, item_id, count)
 VALUES ($1, $2, $3)
@@ -613,6 +650,9 @@ DO UPDATE SET count = commander_items.count + EXCLUDED.count
 func (c *Commander) AddItemTx(ctx context.Context, tx pgx.Tx, itemId uint32, amount uint32) error {
 	if c.CommanderItemsMap == nil {
 		c.CommanderItemsMap = make(map[uint32]*CommanderItem)
+	}
+	if err := c.ensureItemCatalogEntry(ctx, tx, itemId); err != nil {
+		return err
 	}
 	_, err := tx.Exec(ctx, `
 INSERT INTO commander_items (commander_id, item_id, count)

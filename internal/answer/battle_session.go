@@ -9,6 +9,7 @@ import (
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 	"google.golang.org/protobuf/proto"
@@ -71,12 +72,16 @@ func BeginStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_40003
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
+		logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("unmarshal failed: %v", err), logger.LOG_LEVEL_WARN)
 		return 0, 40004, err
 	}
+	logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("enter score=%d system=%d data=%d stats=%d", payload.GetScore(), payload.GetSystem(), payload.GetData(), len(payload.GetStatistics())), logger.LOG_LEVEL_WARN)
 	session, err := orm.GetBattleSession(client.Commander.CommanderID)
 	if err != nil && !db.IsNotFound(err) {
+		logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("GetBattleSession failed: %v", err), logger.LOG_LEVEL_WARN)
 		return 0, 40004, err
 	}
+	logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("session present=%v", session != nil), logger.LOG_LEVEL_WARN)
 	if client.Commander.OwnedShipsMap == nil {
 		if err := client.Commander.Load(); err != nil {
 			return 0, 40004, err
@@ -156,10 +161,13 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if update != nil && update.defeated {
 			drops, err := buildChapterAwardDrops(update.template)
 			if err != nil {
+				logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("buildChapterAwardDrops failed: %v", err), logger.LOG_LEVEL_WARN)
 				return 0, 40004, err
 			}
+			logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("award branch defeated=true drops=%d", len(drops)), logger.LOG_LEVEL_WARN)
 			if len(drops) > 0 {
 				if err := applyDropList(client, drops); err != nil {
+					logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("applyDropList failed: %v", err), logger.LOG_LEVEL_WARN)
 					return 0, 40004, err
 				}
 				dropList = dropMapToList(drops)
@@ -167,6 +175,7 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 	}
 	if err := applyBattleShipUpdates(client, shipExpGains, shipEnergyUpdates, shipIntimacyUpdates); err != nil {
+		logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("applyBattleShipUpdates failed: %v", err), logger.LOG_LEVEL_WARN)
 		return 0, 40004, err
 	}
 	playerExp := uint32(0)
@@ -193,7 +202,9 @@ func FinishStage(buffer *[]byte, client *connection.Client) (int, int, error) {
 		ShipExpList:   shipExpList,
 		Mvp:           proto.Uint32(mvp),
 	}
-	return client.SendMessage(40004, &response)
+	sent, _, err := client.SendMessage(40004, &response)
+	logger.LogEvent("Trace", "FinishStage", fmt.Sprintf("send SC_40004 bytes=%d drops=%d shipExp=%d err=%v", sent, len(dropList), len(shipExpList), err), logger.LOG_LEVEL_WARN)
+	return sent, 40004, err
 }
 
 type expeditionConfig struct {
@@ -610,6 +621,9 @@ func buildChapterAwardDrops(template *chapterTemplate) (map[string]*protobuf.DRO
 			if err != nil {
 				return nil, err
 			}
+			if resolvedCount == 0 {
+				continue
+			}
 			key := fmt.Sprintf("%d_%d", resolvedType, resolvedID)
 			if existing, ok := drops[key]; ok {
 				existing.Number = proto.Uint32(existing.GetNumber() + resolvedCount)
@@ -629,13 +643,18 @@ func resolveChapterAwardDrop(dropType uint32, dropID uint32) (uint32, uint32, ui
 	if err != nil {
 		return 0, 0, 0, err
 	}
+	// 虚拟物品配置查不到时【不能】把虚拟 id 当真实物品发出去：它不是 items 表里的条目，
+	// 发下去会撞 commander_items 的外键（实测 1-1 的 56001，服务端数据停在 9.6 时就没这条）。
+	// 返回 count=0 让调用方跳过，等数据补齐后自然恢复。
 	if config == nil || len(config.DisplayIcon) == 0 {
-		return dropType, dropID, 1, nil
+		logger.LogEvent("Trace", "ChapterAward", fmt.Sprintf("virtual item %d has no config, skipping award", dropID), logger.LOG_LEVEL_WARN)
+		return dropType, dropID, 0, nil
 	}
 	// TODO: honor loot odds/weights instead of uniform selection.
 	entry := config.DisplayIcon[randomIndex(len(config.DisplayIcon))]
 	if len(entry) < 2 {
-		return dropType, dropID, 1, nil
+		logger.LogEvent("Trace", "ChapterAward", fmt.Sprintf("virtual item %d has a malformed display_icon entry, skipping award", dropID), logger.LOG_LEVEL_WARN)
+		return dropType, dropID, 0, nil
 	}
 	count := uint32(1)
 	if len(entry) > 2 && entry[2] > 0 {

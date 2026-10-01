@@ -22,24 +22,25 @@ const (
 )
 
 type SC_13104 struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Result           *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
-	MovePath         []*CHAPTERCELLPOS_P13  `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
-	DropList         []*DROPINFO            `protobuf:"bytes,3,rep,name=drop_list,json=dropList" json:"drop_list,omitempty"`
-	MapUpdate        []*CHAPTERCELLINFO_P13 `protobuf:"bytes,4,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
-	ShipUpdate       []*SHIPINCHAPTER_P13   `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
-	AiList           []*CHAPTERCELLINFO_P13 `protobuf:"bytes,6,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
-	AiActList        []*AI_ACT_P13          `protobuf:"bytes,7,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
-	SubmarineActList []*AI_ACT_P13          `protobuf:"bytes,8,rep,name=submarine_act_list,json=submarineActList" json:"submarine_act_list,omitempty"`
-	EscortActList    []*AI_ACT_P13          `protobuf:"bytes,9,rep,name=escort_act_list,json=escortActList" json:"escort_act_list,omitempty"`
-	FleetActList     []*AI_ACT_P13          `protobuf:"bytes,10,rep,name=fleet_act_list,json=fleetActList" json:"fleet_act_list,omitempty"`
-	BuffList         []uint32               `protobuf:"varint,11,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
-	AddFlagList      []uint32               `protobuf:"varint,12,rep,name=add_flag_list,json=addFlagList" json:"add_flag_list,omitempty"`
-	DelFlagList      []uint32               `protobuf:"varint,13,rep,name=del_flag_list,json=delFlagList" json:"del_flag_list,omitempty"`
-	CellFlagList     []*CELLFLAG            `protobuf:"bytes,14,rep,name=cell_flag_list,json=cellFlagList" json:"cell_flag_list,omitempty"`
-	ExtraDropList    []*DROPINFO            `protobuf:"bytes,15,rep,name=extra_drop_list,json=extraDropList" json:"extra_drop_list,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	Result               *uint32                `protobuf:"varint,1,req,name=result" json:"result,omitempty"`
+	MovePath             []*CHAPTERCELLPOS_P13  `protobuf:"bytes,2,rep,name=move_path,json=movePath" json:"move_path,omitempty"`
+	DropList             []*DROPINFO            `protobuf:"bytes,3,rep,name=drop_list,json=dropList" json:"drop_list,omitempty"`
+	MapUpdate            []*CHAPTERCELLINFO_P13 `protobuf:"bytes,4,rep,name=map_update,json=mapUpdate" json:"map_update,omitempty"`
+	ShipUpdate           []*SHIPINCHAPTER_P13   `protobuf:"bytes,5,rep,name=ship_update,json=shipUpdate" json:"ship_update,omitempty"`
+	AiList               []*CHAPTERCELLINFO_P13 `protobuf:"bytes,6,rep,name=ai_list,json=aiList" json:"ai_list,omitempty"`
+	AiActList            []*AI_ACT_P13          `protobuf:"bytes,7,rep,name=ai_act_list,json=aiActList" json:"ai_act_list,omitempty"`
+	SubmarineActList     []*AI_ACT_P13          `protobuf:"bytes,8,rep,name=submarine_act_list,json=submarineActList" json:"submarine_act_list,omitempty"`
+	EscortActList        []*AI_ACT_P13          `protobuf:"bytes,9,rep,name=escort_act_list,json=escortActList" json:"escort_act_list,omitempty"`
+	FleetActList         []*AI_ACT_P13          `protobuf:"bytes,10,rep,name=fleet_act_list,json=fleetActList" json:"fleet_act_list,omitempty"`
+	BuffList             []uint32               `protobuf:"varint,11,rep,name=buff_list,json=buffList" json:"buff_list,omitempty"`
+	AddFlagList          []uint32               `protobuf:"varint,12,rep,name=add_flag_list,json=addFlagList" json:"add_flag_list,omitempty"`
+	DelFlagList          []uint32               `protobuf:"varint,13,rep,name=del_flag_list,json=delFlagList" json:"del_flag_list,omitempty"`
+	CellFlagList         []*CELLFLAG            `protobuf:"bytes,14,rep,name=cell_flag_list,json=cellFlagList" json:"cell_flag_list,omitempty"`
+	ExtraDropList        []*DROPINFO            `protobuf:"bytes,15,rep,name=extra_drop_list,json=extraDropList" json:"extra_drop_list,omitempty"`
+	AutoBattleTimeUpdate *uint32                `protobuf:"varint,16,opt,name=auto_battle_time_update,json=autoBattleTimeUpdate" json:"auto_battle_time_update,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *SC_13104) Reset() {
@@ -177,11 +178,18 @@ func (x *SC_13104) GetExtraDropList() []*DROPINFO {
 	return nil
 }
 
+func (x *SC_13104) GetAutoBattleTimeUpdate() uint32 {
+	if x != nil && x.AutoBattleTimeUpdate != nil {
+		return *x.AutoBattleTimeUpdate
+	}
+	return 0
+}
+
 var File_SC_13104_proto protoreflect.FileDescriptor
 
 const file_SC_13104_proto_rawDesc = "" +
 	"\n" +
-	"\x0eSC_13104.proto\x12\abelfast\x1a\x10AI_ACT_P13.proto\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x18CHAPTERCELLPOS_P13.proto\x1a\x0eDROPINFO.proto\x1a\x17SHIPINCHAPTER_P13.proto\"\x86\x06\n" +
+	"\x0eSC_13104.proto\x12\abelfast\x1a\x10AI_ACT_P13.proto\x1a\x0eCELLFLAG.proto\x1a\x19CHAPTERCELLINFO_P13.proto\x1a\x18CHAPTERCELLPOS_P13.proto\x1a\x0eDROPINFO.proto\x1a\x17SHIPINCHAPTER_P13.proto\"\xbd\x06\n" +
 	"\bSC_13104\x12\x16\n" +
 	"\x06result\x18\x01 \x02(\rR\x06result\x128\n" +
 	"\tmove_path\x18\x02 \x03(\v2\x1b.belfast.CHAPTERCELLPOS_P13R\bmovePath\x12.\n" +
@@ -200,7 +208,8 @@ const file_SC_13104_proto_rawDesc = "" +
 	"\radd_flag_list\x18\f \x03(\rR\vaddFlagList\x12\"\n" +
 	"\rdel_flag_list\x18\r \x03(\rR\vdelFlagList\x127\n" +
 	"\x0ecell_flag_list\x18\x0e \x03(\v2\x11.belfast.CELLFLAGR\fcellFlagList\x129\n" +
-	"\x0fextra_drop_list\x18\x0f \x03(\v2\x11.belfast.DROPINFOR\rextraDropListB\fZ\n" +
+	"\x0fextra_drop_list\x18\x0f \x03(\v2\x11.belfast.DROPINFOR\rextraDropList\x125\n" +
+	"\x17auto_battle_time_update\x18\x10 \x01(\rR\x14autoBattleTimeUpdateB\fZ\n" +
 	"./protobuf"
 
 var (
