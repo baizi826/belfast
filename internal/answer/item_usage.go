@@ -38,14 +38,31 @@ type itemUsageConfig struct {
 	IconList json.RawMessage `json:"display_icon"`
 }
 
+// dropIDValue：cfg 里 drop_id 是**字符串**。9.7 实测 684 行里 682 行是 "4901" 这种数字串，
+// 另有 2 行是 "mail"；旧代码把字段写成 uint32 ⇒ json.Unmarshal 报
+// `cannot unmarshal string into Go struct field dropRestoreEntry.drop_id of type uint32`
+// ⇒ handler 抛错 ⇒ CloseWithError 把**整条连接**掐掉（实机表现：登录界面卡「黄鸡」）。
+// 该字段只用于和请求里的 dropID 做**相等匹配**（applyDropRestoreEntry 里根本不用它），
+// 所以按字符串保存；同时接受旧的数字写法（单测里塞的是数字）。
+type dropIDValue string
+
+func (v *dropIDValue) UnmarshalJSON(data []byte) error {
+	raw := strings.TrimSpace(string(data))
+	if len(raw) >= 2 && raw[0] == '"' && raw[len(raw)-1] == '"' {
+		raw = raw[1 : len(raw)-1]
+	}
+	*v = dropIDValue(raw)
+	return nil
+}
+
 type dropRestoreEntry struct {
-	ID           uint32 `json:"id"`
-	DropID       uint32 `json:"drop_id"`
-	ResourceType uint32 `json:"resource_type"`
-	ResourceNum  uint32 `json:"resource_num"`
-	TargetType   uint32 `json:"target_type"`
-	TargetID     uint32 `json:"target_id"`
-	Type         uint32 `json:"type"`
+	ID           uint32      `json:"id"`
+	DropID       dropIDValue `json:"drop_id"`
+	ResourceType uint32      `json:"resource_type"`
+	ResourceNum  uint32      `json:"resource_num"`
+	TargetType   uint32      `json:"target_type"`
+	TargetID     uint32      `json:"target_id"`
+	Type         uint32      `json:"type"`
 }
 
 type shopTemplateEntry struct {
@@ -522,7 +539,7 @@ func listDropRestoreEntries(dropID uint32) ([]dropRestoreEntry, error) {
 		if err := json.Unmarshal(entry.Data, &parsed); err != nil {
 			return nil, err
 		}
-		if parsed.DropID == dropID {
+		if string(parsed.DropID) == fmt.Sprintf("%d", dropID) {
 			result = append(result, parsed)
 		}
 	}

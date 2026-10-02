@@ -443,6 +443,17 @@ func SendProtoMessage(packetId int, client *Client, message any) (int, int, erro
 			return 0, packetId, err
 		}
 	}
+	// 包头长度字段只有 16 位（GeneratePacketHeader 写 len>>8, len）：payload > 65530 会被截断
+	// ⇒ 客户端按错长度切包 ⇒ 整条流错位 ⇒ 报 `inflating: unknown compression method`。
+	// 这种包发出去只是"慢性中毒"，不如在这里拦下来：调用方必须自己分包
+	// （见 commandermisc/commander_dock.go 的 12010）。
+	if len(data)+5 > 0xFFFF {
+		err := fmt.Errorf("SC_%d payload %d bytes exceeds the 16-bit length field (max %d) - caller must chunk it",
+			packetId, len(data), 0xFFFF-5)
+		logger.LogEvent("Connection", "TooBig", err.Error(), logger.LOG_LEVEL_ERROR)
+		client.RecordHandlerError()
+		return 0, packetId, err
+	}
 	debug.InsertPacket(packetId, &data)
 	InjectPacketHeader(packetId, &data, client.PacketIndex)
 	n, err := client.Buffer.Write(data)
