@@ -14,6 +14,12 @@ import (
 
 // Reimplementation of SC_11000
 func LastLogin(buffer *[]byte, client *connection.Client) (int, int, error) {
+	// 客户端重连时会跳过 10022 握手直接发 11001 —— 此时 Commander 还是 nil。
+	// 以前这里直接解引用 ⇒ 整个服务进程 panic 退出（不只是断这一条连接）。
+	// 回错误交给 Dispatch，它会 CloseWithError 干净地断连，客户端重走完整登录。
+	if client.Commander == nil {
+		return 0, 11000, fmt.Errorf("commander not loaded (reconnect without the 10022 handshake?)")
+	}
 	now := time.Now().UTC()
 	nowUnix := uint32(now.Unix())
 	if _, err := orm.ApplyCommanderMoraleRecovery(client.Commander.CommanderID, nowUnix); err != nil {

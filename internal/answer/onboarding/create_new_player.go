@@ -75,10 +75,15 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		}
 	}
 
+	// CN 9.7.10 客户端发来的初始舰 id 跟下面这张三条的白名单对不上（实测命中 result=1，
+	// 客户端就显示「无效操作」，建号流程直接卡死）。客户端的可选初始舰本来就只有那几艘，
+	// 服务端不该比客户端更严：认识的照旧，不认识的**记下 id 并放行**。
+	// 拿到真实 id 后把 starterShipIDs 补全再收紧。
 	shipID := payload.GetShipId()
 	if _, ok := starterShipIDs[shipID]; !ok {
-		response.Result = proto.Uint32(1)
-		return client.SendMessage(10025, &response)
+		logger.LogEvent("Server/SC_10025", "UnknownStarterShip",
+			fmt.Sprintf("unknown starter ship id=%d nickname=%q - accepting anyway", shipID, nickname),
+			logger.LOG_LEVEL_WARN)
 	}
 
 	// CN 客户端的 CS_10022/CS_10024 里 device_id 是空的（实测抓包 6: msg[0]），
@@ -105,8 +110,14 @@ func CreateNewPlayer(buffer *[]byte, client *connection.Client) (int, int, error
 		return client.SendMessage(10025, &response)
 	}
 
-	if _, err := orm.GetYostarusMapByArg2(client.AuthArg2); err == nil {
-		response.Result = proto.Uint32(1011)
+	// 账号已经建过了 ⇒ 不要把"再建一次"当成失败。客户端的本地记录（选择过的服务器、
+	// 账号缓存）跟服务器对不上时会重跑整套序章+建号，此时若回 1011（已注册），玩家就
+	// 永久卡在建号环节。按「你已经是这个账号了」回成功，幂等处理。
+	if mapping, err := orm.GetYostarusMapByArg2(client.AuthArg2); err == nil {
+		logger.LogEvent("Server/SC_10025", "AccountAlreadyExists",
+			fmt.Sprintf("arg2=%d already mapped to account=%d - replying success", client.AuthArg2, mapping.AccountID),
+			logger.LOG_LEVEL_WARN)
+		response.UserId = proto.Uint32(mapping.AccountID)
 		return client.SendMessage(10025, &response)
 	} else if !errors.Is(err, db.ErrNotFound) {
 		logger.LogEvent("Server", "SC_10025", fmt.Sprintf("failed to fetch account mapping: %s", err.Error()), logger.LOG_LEVEL_ERROR)

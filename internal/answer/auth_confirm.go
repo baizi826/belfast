@@ -21,6 +21,31 @@ func updateServerList(servers []config.ServerConfig) {
 	protoValidAnswer.Serverlist = Servers
 }
 
+// resolveAccountID 按 SDK uid（arg2）解析账号：先查 yostarus_maps，查不到且开了
+// skip_onboarding 就现建一个，否则回 0（表示交给 CS_10024 建号）。
+//
+// ⚠ 游戏服（HandleAuthConfirm）与网关（HandleGatewayAuthConfirm）**必须走这一份**。
+// 以前网关那份把 AccountId 写死 0，客户端于是永远把自己当新号：跑完序章去建号，
+// 而建号又因为账号已存在回 1011 ⇒ 永久卡在「建立角色」界面。
+func resolveAccountID(client *connection.Client, arg2 uint32) (uint32, error) {
+	yostarusAuth, err := orm.GetYostarusMapByArg2(arg2)
+	if err == nil {
+		return yostarusAuth.AccountID, nil
+	}
+	if !db.IsNotFound(err) {
+		return 0, err
+	}
+	if !config.Current().CreatePlayer.SkipOnboarding {
+		return 0, nil // 0 = CS_10024 handles account creation.
+	}
+	// skip onboarding by creating the account on auth
+	accountID, err := client.CreateCommander(arg2)
+	if err != nil {
+		return 0, err
+	}
+	return accountID, nil
+}
+
 func HandleAuthConfirm(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_10020
 	err := proto.Unmarshal(*buffer, &payload)
@@ -38,27 +63,12 @@ func HandleAuthConfirm(buffer *[]byte, client *connection.Client) (int, int, err
 	client.AuthArg2 = uint32(intArg2)
 	protoValidAnswer.ServerTicket = proto.String(formatServerTicket(client.AuthArg2))
 
-	yostarusAuth, err := orm.GetYostarusMapByArg2(uint32(intArg2))
+	accountID, err := resolveAccountID(client, client.AuthArg2)
 	if err != nil {
-		if db.IsNotFound(err) {
-			if config.Current().CreatePlayer.SkipOnboarding {
-				// skip onboarding by creating the account on auth
-				accountID, err := client.CreateCommander(uint32(intArg2))
-				if err != nil {
-					logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to create commander: %s", err.Error()), logger.LOG_LEVEL_ERROR)
-					return 0, 10021, err
-				}
-				protoValidAnswer.AccountId = proto.Uint32(accountID)
-			} else {
-				protoValidAnswer.AccountId = proto.Uint32(0) // CS_10024 handles account creation.
-			}
-		} else {
-			logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to fetch account for arg2 %d: %s", intArg2, err.Error()), logger.LOG_LEVEL_ERROR)
-			return 0, 10021, err
-		}
-	} else {
-		protoValidAnswer.AccountId = proto.Uint32(yostarusAuth.AccountID)
+		logger.LogEvent("Server", "SC_10021", fmt.Sprintf("failed to resolve account for arg2 %d: %s", client.AuthArg2, err.Error()), logger.LOG_LEVEL_ERROR)
+		return 0, 10021, err
 	}
+	protoValidAnswer.AccountId = proto.Uint32(accountID)
 
 	// Update server list
 	updateServerList(config.Current().Servers)

@@ -22,9 +22,15 @@ func HandleGatewayAuthConfirm(buffer *[]byte, client *connection.Client) (int, i
 	if arg2, err := strconv.Atoi(payload.GetArg2()); err == nil {
 		client.AuthArg2 = uint32(arg2)
 	}
+	// AccountId 必须真的解析出来：以前这里写死 0，客户端于是永远把自己当新号。
+	accountID, err := resolveAccountID(client, client.AuthArg2)
+	if err != nil {
+		logger.LogEvent("Gateway", "SC_10021", fmt.Sprintf("failed to resolve account for arg2 %d: %s", client.AuthArg2, err.Error()), logger.LOG_LEVEL_ERROR)
+		return 0, 10021, err
+	}
 	response := protobuf.SC_10021{
 		Result:       proto.Uint32(0),
-		AccountId:    proto.Uint32(0),
+		AccountId:    proto.Uint32(accountID),
 		ServerTicket: proto.String(formatServerTicket(client.AuthArg2)),
 		Device:       proto.Uint32(0),
 	}
