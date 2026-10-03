@@ -23,3 +23,12 @@ api_port = 2289
 # assert_online = true
 # proxy_ip = "127.0.0.1"
 # proxy_port = 7001
+
+# The gateway answers CS_10020 itself (AccountId + server list), so it needs the same
+# database as the game server: resolving the SDK uid (arg2) into an account is a DB
+# lookup. Leave it out and the gateway degrades to AccountId=0 (the client then replays
+# the whole new-player flow) but still serves the server list.
+[database]
+driver = "postgres"
+dsn = "postgres://belfast@127.0.0.1:5432/belfast?sslmode=disable"
+# schema_name = ""

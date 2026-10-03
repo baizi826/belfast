@@ -1,6 +1,7 @@
 package entrypoint
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/ggmolly/belfast/internal/config"
 	"github.com/ggmolly/belfast/internal/connection"
+	"github.com/ggmolly/belfast/internal/db"
 	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/packets"
 )
@@ -35,6 +37,14 @@ func RunGateway() {
 	if err != nil {
 		logger.LogEvent("Config", "Load", err.Error(), logger.LOG_LEVEL_ERROR)
 		os.Exit(1)
+	}
+	// 网关要用库把 SDK uid 解析成账号（CS_10020 → SC_10021.AccountId）。
+	// 库不可用时**不退出**：退化成 AccountId=0（客户端会重跑新手流程）但服务器列表照发，
+	// 否则一道坎就把客户端堵在“无法获取服务器”。
+	if loadedConfig.DB.DSN != "" {
+		if _, err := db.InitDefaultStore(context.Background(), loadedConfig.DB.DSN, loadedConfig.DB.SchemaName); err != nil {
+			logger.LogEvent("Gateway", "DB", fmt.Sprintf("failed to init store: %s", err.Error()), logger.LOG_LEVEL_ERROR)
+		}
 	}
 	if loadedConfig.Mode == "proxy" {
 		runtime := newGatewayProxyRuntime(loadedConfig)

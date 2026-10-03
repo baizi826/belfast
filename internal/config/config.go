@@ -31,7 +31,12 @@ type GatewayConfig struct {
 	// When nil, defaults to true.
 	RequirePrivateClients *bool          `toml:"require_private_clients"`
 	Servers               []ServerConfig `toml:"servers"`
-	Path                  string         `toml:"-"`
+	// 网关自己回答 CS_10020（AccountId + 服务器列表），所以它也需要游戏服那个库：
+	// 要把 SDK uid(arg2) 解析成账号，不查库就只能永远回 AccountId=0，
+	// 客户端会因此重跑整套新手流程。
+	DB           DatabaseConfig     `toml:"database"`
+	CreatePlayer CreatePlayerConfig `toml:"create_player"`
+	Path         string             `toml:"-"`
 }
 
 type BelfastConfig struct {
@@ -193,8 +198,10 @@ func LoadGateway(path string) (GatewayConfig, error) {
 			BindAddress: cfg.BindAddress,
 			Port:        cfg.Port,
 		},
-		Servers: cfg.Servers,
-		Path:    cfg.Path,
+		Servers:      cfg.Servers,
+		DB:           cfg.DB,
+		CreatePlayer: cfg.CreatePlayer,
+		Path:         cfg.Path,
 	}
 	return cfg, nil
 }

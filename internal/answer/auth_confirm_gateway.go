@@ -23,10 +23,12 @@ func HandleGatewayAuthConfirm(buffer *[]byte, client *connection.Client) (int, i
 		client.AuthArg2 = uint32(arg2)
 	}
 	// AccountId 必须真的解析出来：以前这里写死 0，客户端于是永远把自己当新号。
+	// 但网关是**前门**：解析失败（库没接上、库报错）也不能让客户端连服务器列表都拿不到
+	// —— 退化成 0（客户端重跑新手流程）并大声记日志，服务器列表照发。
 	accountID, err := resolveAccountID(client, client.AuthArg2)
 	if err != nil {
-		logger.LogEvent("Gateway", "SC_10021", fmt.Sprintf("failed to resolve account for arg2 %d: %s", client.AuthArg2, err.Error()), logger.LOG_LEVEL_ERROR)
-		return 0, 10021, err
+		logger.LogEvent("Gateway", "SC_10021", fmt.Sprintf("failed to resolve account for arg2 %d: %s (replying AccountId=0)", client.AuthArg2, err.Error()), logger.LOG_LEVEL_ERROR)
+		accountID = 0
 	}
 	response := protobuf.SC_10021{
 		Result:       proto.Uint32(0),
