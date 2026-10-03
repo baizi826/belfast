@@ -328,6 +328,11 @@ func (client *Client) GetCommander(accountId uint32) error {
 	if err != nil {
 		return err
 	}
+	// 登录路径必须加载完整数据（舰船/编队/装备），否则 c.Ships 为 nil，
+	// GetSecretaries() 返回空 => SC_11003 提前 return => 客户端卡在 LOADING。
+	if err := commander.Load(); err != nil {
+		return err
+	}
 	client.Commander = commander
 	return nil
 }
