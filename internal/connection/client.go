@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -193,9 +194,27 @@ func (client *Client) dispatchLoop() {
 			return
 		}
 		atomic.AddUint64(&client.metrics.packets, 1)
-		client.Server.Dispatcher(&packet, client, len(packet))
+		client.dispatchSafely(&packet)
 		client.releasePacketBuffer(packet)
 	}
+}
+
+// dispatchSafely runs one packet through the dispatcher behind a panic guard. A
+// handler that dereferences a nil - a client that speaks before the login
+// handshake, a table an importer left empty - used to kill the whole process,
+// because Go panics are fatal for the goroutine and nothing recovers them: one
+// malformed packet from any client took every session down with it.
+func (client *Client) dispatchSafely(packet *[]byte) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.LogEvent("Connection", "Panic",
+				fmt.Sprintf("%s:%d -> %v\n%s", client.IP, client.Port, r, debug.Stack()),
+				logger.LOG_LEVEL_ERROR)
+			client.RecordHandlerError()
+			client.CloseWithError(fmt.Errorf("handler panic: %v", r))
+		}
+	}()
+	client.Server.Dispatcher(packet, client, len(*packet))
 }
 
 func (client *Client) CreateCommander(arg2 uint32) (uint32, error) {

@@ -34,46 +34,9 @@ func registerPackets() {
 	// CS_23430 is part of the first-login handshake and has no upstream implementation;
 	// it is answered from a captured official SC_23431 (see answer/packet_23430.go).
 	packets.RegisterPacketHandler(23430, []packets.PacketHandler{answer.HandleLegacy23430})
-	packets.RegisterPacketHandler(11001, []packets.PacketHandler{
-		answer.LastLogin,
-		answer.PlayerInfo,
-		answer.PlayerBuffs,
-		answer.GetMetaProgress,
-		answer.LastOnlineInfo,
-		answer.ResourcesInfo,
-		answer.EventData,
-		answer.Meowfficers,
-		answer.CommanderCollection,
-		answer.OngoingBuilds,
-		answer.PlayerDock,
-		answer.CommanderDock,
-		answer.CommanderFleet,
-		answer.CommanderOwnedSkins,
-		answer.TechnologyRefreshList,
-		answer.ShipyardData,
-		answer.TechnologyNationProxy,
-		answer.CommanderStoryProgress,
-		answer.EventCollectionInfo,
-		answer.CommanderCommissionsFleet,
-		answer.ShopData,
-		answer.WorldBaseInfo,
-		answer.ChapterBaseSync,
-		answer.EquipedSpecialWeapons,
-		answer.EquippedWeaponSkin,
-		answer.OwnedItems,
-		answer.CommanderMissions,
-		answer.WeeklyMissions,
-		answer.ActivityTaskStateSync,
-		answer.DormData,
-		answer.FleetEnergyRecoverTime,
-		answer.GameMailbox,
-		answer.CompensateNotification,
-		answer.CommanderFriendList,
-		answer.Activities,
-		answer.PermanentActivites,
-		answer.GameNotices,
-		answer.SendPlayerShipCount,
-	})
+	// The full sync chain lives in answer.loginSyncChain; PlayerLoginSync either
+	// replays a captured official burst (BELFAST_OFFICIAL_DIR) or runs the chain.
+	packets.RegisterPacketHandler(11001, []packets.PacketHandler{answer.PlayerLoginSync})
 	packets.RegisterPacketHandler(25026, []packets.PacketHandler{answer.GetCommanderHome})
 	packets.RegisterPacketHandler(63001, []packets.PacketHandler{answer.StartTechnologyResearch})
 	packets.RegisterPacketHandler(63003, []packets.PacketHandler{answer.FinishTechnologyResearch})

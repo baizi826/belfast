@@ -1,6 +1,8 @@
 package answer
 
 import (
+	"fmt"
+
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/orm"
 
@@ -24,6 +26,9 @@ func mailboxCounts(mails []orm.Mail) (uint32, uint32) {
 }
 
 func syncCommanderMailState(client *connection.Client) error {
+	if client.Commander == nil {
+		return fmt.Errorf("commander not loaded (mailbox packet sent before the 10022 handshake?)")
+	}
 	totalCount, unreadCount, err := orm.GetMailboxCounts(client.Commander.CommanderID)
 	if err != nil {
 		return err
