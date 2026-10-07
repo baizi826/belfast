@@ -175,63 +175,56 @@ func HandleChapterAutoBatch(buffer *[]byte, client *connection.Client) (int, int
 	return client.SendMessage(13019, &response)
 }
 
-// HandleChapterAutoClaim answers CS_13014 —— 领取已完成的周回。
-//
-// ponytail: 奖励结算（经验 / 掉落 / 票券）尚未接入，class_exp 与 drop_list 一律为空。
-// 天花板：玩家领到的是"完成记录被清掉"，没有实际收益。
-// 升级路径：接 battle_session 的掉落与指挥官经验后，在这里按 row.ConfigID 累计发放。
-func HandleChapterAutoClaim(buffer *[]byte, client *connection.Client) (int, int, error) {
-	var payload protobuf.CS_13014
-	if err := proto.Unmarshal(*buffer, &payload); err != nil {
-		return 0, 13015, err
-	}
+// ChapterAutoJob 是一件"已完成待领取"的周回。奖励发放需要 answer 包的指挥官经验
+// 逻辑，所以这里只把记录交出去，由桥接层结算。
+type ChapterAutoJob struct {
+	ConfigID uint32
+	CostTime uint32
+}
+
+// TakeFinishedChapterAutoCommissions 取出并删除已完成的周回（先删后发，避免重复领取）。
+// want 为 0 表示"全部已完成的"。
+func TakeFinishedChapterAutoCommissions(commanderID uint32, want uint32) ([]ChapterAutoJob, error) {
 	now := uint32(time.Now().Unix())
-	rows, err := orm.ListChapterAutoCommissions(client.Commander.CommanderID)
+	rows, err := orm.ListChapterAutoCommissions(commanderID)
 	if err != nil {
-		return 0, 13015, err
+		return nil, err
 	}
-	want := payload.GetNum()
 	if want == 0 {
 		want = uint32(len(rows))
 	}
+	jobs := make([]ChapterAutoJob, 0, want)
 	ids := make([]int64, 0, want)
-	seconds := uint32(0)
 	for _, row := range rows {
-		if uint32(len(ids)) >= want {
+		if uint32(len(jobs)) >= want {
 			break
 		}
 		// 队列按 finishTime 升序，第一个还没到点就说明后面都没到。
 		if row.FinishTime > now {
 			break
 		}
+		jobs = append(jobs, ChapterAutoJob{ConfigID: row.ConfigID, CostTime: row.CostTime})
 		ids = append(ids, row.ID)
-		seconds += row.CostTime
 	}
 	if len(ids) == 0 {
-		response := protobuf.SC_13015{
-			Result:                proto.Uint32(1),
-			DropList:              []*protobuf.DROPINFO{},
-			ChapterAutoTicketList: []*protobuf.CHAPTER_AUTO_TICKET{},
-			Oil:                   proto.Uint32(0),
-			Seconds:               proto.Uint32(0),
-			WorldAp:               proto.Uint32(0),
-			ClassExp:              proto.Uint32(0),
-		}
-		return client.SendMessage(13015, &response)
+		return nil, nil
 	}
-	if err := orm.DeleteChapterAutoCommissions(client.Commander.CommanderID, ids); err != nil {
-		return 0, 13015, err
+	if err := orm.DeleteChapterAutoCommissions(commanderID, ids); err != nil {
+		return nil, err
 	}
-	response := protobuf.SC_13015{
-		Result:                proto.Uint32(0),
-		DropList:              []*protobuf.DROPINFO{},
-		ChapterAutoTicketList: []*protobuf.CHAPTER_AUTO_TICKET{},
-		Oil:                   proto.Uint32(0),
-		Seconds:               proto.Uint32(seconds),
-		WorldAp:               proto.Uint32(0),
-		ClassExp:              proto.Uint32(0),
+	return jobs, nil
+}
+
+// ChapterAutoBaseExp 每次周回给指挥官的固定经验（chapter_auto_statistics.base_class_exp）。
+func ChapterAutoBaseExp(configID uint32) (uint32, error) {
+	stats, err := loadChapterAutoStatistics(configID)
+	if err != nil {
+		return 0, err
 	}
-	return client.SendMessage(13015, &response)
+	if stats == nil {
+		return 0, nil
+	}
+	return stats.BaseClassExp, nil
 }
 
 // HandleChapterAutoUseTicket answers CS_13016 —— 使用票券。

@@ -58,13 +58,10 @@ func GetChapterDropShipList(buffer *[]byte, client *connection.Client) (int, int
 	return answerchapter.GetChapterDropShipList(buffer, client)
 }
 
-// 自动作战（周回）：13012/13014/13016/13018。
+// 自动作战（周回）：13012/13016/13018 转发到 chapter 包；
+// 13014（领取）由本包的 chapter_auto_claim.go 实现，因为它要发指挥官经验。
 func HandleChapterAutoStart(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return answerchapter.HandleChapterAutoStart(buffer, client)
-}
-
-func HandleChapterAutoClaim(buffer *[]byte, client *connection.Client) (int, int, error) {
-	return answerchapter.HandleChapterAutoClaim(buffer, client)
 }
 
 func HandleChapterAutoUseTicket(buffer *[]byte, client *connection.Client) (int, int, error) {
