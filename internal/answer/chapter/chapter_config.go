@@ -17,6 +17,7 @@ const (
 	chapterTemplateCategory     = "sharecfgdata/chapter_template.json"
 	chapterTemplateLoopCategory = "sharecfgdata/chapter_template_loop.json"
 	chapterAutoStatisticsCat    = "ShareCfg/chapter_auto_statistics.json"
+	worldAutoStatisticsCat      = "ShareCfg/world_auto_statistics.json"
 	itemDataStatsCategory       = "sharecfgdata/item_data_statistics.json"
 	benefitBuffCategory         = "ShareCfg/benefit_buff_template.json"
 	friendlyDataCategory        = "ShareCfg/friendly_data_template.json"
@@ -40,6 +41,34 @@ type chapterAutoStatistics struct {
 	BaseClassExp     uint32   `json:"base_class_exp"`
 	DropExpBook      uint32   `json:"drop_expbook"`
 	BossExpeditionID []uint32 `json:"boss_expedition_id"`
+}
+
+// worldAutoStatistics 大世界（Operation Siren）自动作战统计表。id 是海域编号（11..159）。
+//
+// 客户端对 type=2 不做 GetFixTime 修正（chapterautoproxy.lua:350 的 default 分支原样返回
+// seconds），所以 time_correction 就是客户端最终显示的耗时 —— 这也是服务端该给的值。
+// 取值档位：240/360/480/600/720/900 秒。
+type worldAutoStatistics struct {
+	ID             uint32     `json:"id"`
+	OilLimit       uint32     `json:"oil_limit"`
+	TimeCorrection uint32     `json:"time_correction"`
+	DropExpBook    uint32     `json:"drop_expbook"`
+	AwardDisplay   [][]uint32 `json:"award_display"`
+}
+
+func loadWorldAutoStatistics(areaID uint32) (*worldAutoStatistics, error) {
+	entry, err := orm.GetConfigEntry(worldAutoStatisticsCat, fmt.Sprintf("%d", areaID))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var stats worldAutoStatistics
+	if err := json.Unmarshal(entry.Data, &stats); err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 type chapterTemplate struct {

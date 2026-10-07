@@ -57,45 +57,54 @@ func computeChapterAutoCost(baseTime uint32, stats *chapterAutoStatistics) uint3
 	return uint32(math.Floor(float64(baseTime)*rate)) + stats.TimeCorrection
 }
 
-// chapterAutoCost 单次周回的耗时（秒）。
+// chapterAutoCost 单次周回的耗时（秒），按 type 选表。
 //
-// 客户端只做显示修正：chapterautoproxy.lua:350
+// type=1（SLG）：基础值取 chapter_template[id].Time，再套 chapter_auto_statistics 的
+// rate/correction —— 与客户端 GetFixTime 同源，保证两边显示的时长一致。
 //
-//	GetFixTime(type, id, seconds) = floor(seconds * cfg.time_rate) + cfg.time_correction
+// type=2（大世界）：客户端对非 SLG 不做修正（原样返回 seconds），所以直接给
+// world_auto_statistics[id].time_correction（240/360/480/600/720/900 秒档）。
 //
-// 所以服务端必须给"原始秒数"。这里取 chapter_template[id].Time 作为基础值，
-// 修正参数与客户端同源（chapter_auto_statistics），保证两边看到的时长一致。
-//
-// ponytail: 官方原始基础耗时未经采样验证（2-4 的模板 time = 100s）。
-// 天花板：若官服基础值不同，玩家看到完成时刻偏快/偏慢，但队列内部比例仍然正确。
-// 升级路径：抓一次官服 SC_13013 的 chapter_auto_battle_list[].seconds 即可校准。
-func chapterAutoCost(configID uint32) (uint32, error) {
-	stats, err := loadChapterAutoStatistics(configID)
-	if err != nil {
-		return 0, err
+// ponytail: SLG 的官方基础耗时未经采样验证（2-4 的模板 time = 100s），
+// 且官服没有任何 13012..13019 抓包可校准。
+// 天花板：绝对节奏可能偏离官服；队列内部比例仍然正确。
+func chapterAutoCost(chapterType, configID uint32) (uint32, error) {
+	switch chapterType {
+	case chapterAutoTypeMain:
+		stats, err := loadChapterAutoStatistics(configID)
+		if err != nil {
+			return 0, err
+		}
+		base := uint32(0)
+		if template, err := loadChapterTemplate(configID, 0); err == nil && template != nil {
+			base = template.Time
+		}
+		return computeChapterAutoCost(base, stats), nil
+	case chapterAutoTypeWorld:
+		stats, err := loadWorldAutoStatistics(configID)
+		if err != nil {
+			return 0, err
+		}
+		if stats == nil {
+			return 0, nil
+		}
+		return stats.TimeCorrection, nil
+	default:
+		return 0, nil
 	}
-	base := uint32(0)
-	if template, err := loadChapterTemplate(configID, 0); err == nil && template != nil {
-		base = template.Time
-	}
-	return computeChapterAutoCost(base, stats), nil
 }
 
 // startChapterAutoJobs 追加 num 个串行周回，返回创建后的完整队列。
 // 队列语义来自客户端 ChapterAutoProxy.SortCommissionList / IsAllCommissionFinish：
 // 按 finishTime 升序，一次只推进一个，所以第 i 个的完成时刻接在队尾之后。
 func startChapterAutoJobs(client *connection.Client, chapterType, configID, num, ticketNum uint32) ([]*protobuf.CHAPTER_AUTO_BATTLE, uint32, error) {
-	if chapterType != chapterAutoTypeMain {
-		// 2 = 大世界，配置表是 world_auto_statistics，字段语义不同，另行实现。
+	if chapterType != chapterAutoTypeMain && chapterType != chapterAutoTypeWorld {
 		return nil, 1, nil
 	}
 	if num == 0 || num > chapterAutoMaxBatch {
 		return nil, 1, nil
 	}
-	if _, err := loadChapterAutoStatistics(configID); err != nil {
-		return nil, 0, err
-	}
-	cost, err := chapterAutoCost(configID)
+	cost, err := chapterAutoCost(chapterType, configID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -176,8 +185,9 @@ func HandleChapterAutoBatch(buffer *[]byte, client *connection.Client) (int, int
 }
 
 // ChapterAutoJob 是一件"已完成待领取"的周回。奖励发放需要 answer 包的指挥官经验
-// 逻辑，所以这里只把记录交出去，由桥接层结算。
+// 逻辑，所以这里只把记录交出去，由桥接层结算。Type 决定用哪张配置表取经验。
 type ChapterAutoJob struct {
+	Type     uint32
 	ConfigID uint32
 	CostTime uint32
 }
@@ -203,7 +213,7 @@ func TakeFinishedChapterAutoCommissions(commanderID uint32, want uint32) ([]Chap
 		if row.FinishTime > now {
 			break
 		}
-		jobs = append(jobs, ChapterAutoJob{ConfigID: row.ConfigID, CostTime: row.CostTime})
+		jobs = append(jobs, ChapterAutoJob{Type: row.Type, ConfigID: row.ConfigID, CostTime: row.CostTime})
 		ids = append(ids, row.ID)
 	}
 	if len(ids) == 0 {
@@ -215,8 +225,15 @@ func TakeFinishedChapterAutoCommissions(commanderID uint32, want uint32) ([]Chap
 	return jobs, nil
 }
 
-// ChapterAutoBaseExp 每次周回给指挥官的固定经验（chapter_auto_statistics.base_class_exp）。
-func ChapterAutoBaseExp(configID uint32) (uint32, error) {
+// ChapterAutoBaseExp 每次周回给指挥官的固定经验。
+//
+// 只有 SLG（type=1）的 chapter_auto_statistics 带 base_class_exp；
+// 大世界那张表给的是 drop_expbook（经验书），语义不同，这里返 0 不凭空发经验。
+// ponytail: 大世界周回的成长奖励尚未接入，升级路径是先落地经验书物品发放。
+func ChapterAutoBaseExp(chapterType, configID uint32) (uint32, error) {
+	if chapterType != chapterAutoTypeMain {
+		return 0, nil
+	}
 	stats, err := loadChapterAutoStatistics(configID)
 	if err != nil {
 		return 0, err

@@ -41,7 +41,7 @@ func HandleChapterAutoClaim(buffer *[]byte, client *connection.Client) (int, int
 	classExp := uint32(0)
 	seconds := uint32(0)
 	for _, job := range jobs {
-		exp, err := answerchapter.ChapterAutoBaseExp(job.ConfigID)
+		exp, err := answerchapter.ChapterAutoBaseExp(job.Type, job.ConfigID)
 		if err != nil {
 			return 0, 13015, err
 		}
