@@ -229,10 +229,19 @@ func ChapterAutoBaseExp(configID uint32) (uint32, error) {
 
 // HandleChapterAutoUseTicket answers CS_13016 —— 使用票券。
 //
-// ponytail: 票券是背包物品（chapterautoticket.lua CreateByItem 从 item 的 drop_arg
-// 算过期时间），接入需要先确定票券的物品 id 与 drop_arg 语义。
-// 天花板：这里只回 result=0，客户端的票券数不会增加。
-// 升级路径：确定 68710/68711/68712 对应的真实物品后，在此扣物品并回 SC_13017。
+// 票券的模型（chapterautoticket.lua）已查清：type ∈ {MAIN=1, WORLD=2, TIME=3}，
+// time 就是过期时间戳，num 是张数，同 (type, expireTime) 合并计数；
+// 显示时映射到虚拟物品 68710/68711/68712。过期时间由 CreateByItem 从物品的
+// getConfig("drop_arg") 推出，drop_arg 为空串时是永久票券（FOREVER_TIME = 0xFFFFFFFF）。
+//
+// 卡住的地方在数据侧：item_data_statistics 里没有 drop_arg 字段，
+// item_virtual_data_statistics 里的 drop_arg 全部是空串。而官方 SC_13001 样本里
+// 两条票券的 time 是 1791129600 / 1791388799 —— 都不是永久值，
+// 说明它们的来源（活动发放？商店？）在我们手上的配置里没有对应记录。
+//
+// ponytail: 只回 result=0，客户端票券数不变。
+// 天花板：买的/送的票券不会出现在周回界面。
+// 升级路径：先确定票券真实物品 id（或改成"一律永久票券"），再在此扣物品并回 SC_13017。
 func HandleChapterAutoUseTicket(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var payload protobuf.CS_13016
 	if err := proto.Unmarshal(*buffer, &payload); err != nil {
