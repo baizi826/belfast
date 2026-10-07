@@ -10,13 +10,16 @@ import (
 )
 
 const (
-	chapterAttachBorn         = 1
-	chapterAttachBox          = 2
-	chapterAttachSupply       = 3
+	chapterAttachBorn   = 1
+	chapterAttachBox    = 2
+	chapterAttachSupply = 3
 	// chapterSupplyAmmoAmount 补给格带的弹药量：官服抓包 2-4 是 type=3 id=3（模板 ammo_total=5 ✗），
 	// ALAS pick_up_ammo 也是「最多补 3」⇒ 固定 3。
 	chapterSupplyAmmoAmount = 3
-	chapterAttachBornSub      = 16
+	chapterAttachBornSub    = 16
+	// chapterStartTimeOffset: official sends start_time = time - 43200.
+	// Verified on two captured samples (seq115: time=1790746481, startTime=1790703281 => delta exactly 43200).
+	chapterStartTimeOffset    = 43200
 	chapterAttachBoss         = 8
 	chapterAttachElite        = 4
 	chapterAttachAmbush       = 5
@@ -65,14 +68,15 @@ func buildCurrentChapterInfo(template *chapterTemplate, payload *protobuf.CS_131
 	strategies := buildChapterStrategies(template.ChapterStrategy)
 	initShipCount := mainCount + subCount + supportCount
 	current := &protobuf.CURRENTCHAPTERINFO{
-		Id:                    proto.Uint32(payload.GetId()),
-		Time:                  proto.Uint32(uint32(time.Now().Unix()) + template.Time),
-		CellList:              cellList,
-		MainGroupList:         mainGroups,
-		AiList:                []*protobuf.CHAPTERCELLINFO_P13{},
-		EscortList:            escortList,
-		Round:                 proto.Uint32(0),
-		IsSubmarineAutoAttack: proto.Uint32(0),
+		Id:            proto.Uint32(payload.GetId()),
+		Time:          proto.Uint32(uint32(time.Now().Unix()) + template.Time),
+		CellList:      cellList,
+		MainGroupList: mainGroups,
+		AiList:        []*protobuf.CHAPTERCELLINFO_P13{},
+		EscortList:    escortList,
+		Round:         proto.Uint32(0),
+		// 官服实测 is_submarine_auto_attack=1（audit §2 line41 / §3 line64）。
+		IsSubmarineAutoAttack: proto.Uint32(1),
 		OperationBuff:         buildOperationBuffList(operationBuffID),
 		ModelActCount:         proto.Uint32(0),
 		BuffList:              []uint32{},
@@ -84,13 +88,14 @@ func buildCurrentChapterInfo(template *chapterTemplate, payload *protobuf.CS_131
 		KillCount:             proto.Uint32(0),
 		InitShipCount:         proto.Uint32(initShipCount),
 		ContinuousKillCount:   proto.Uint32(0),
-		// 9.7 新增 required：不进则 proto.Marshal 失败、连接被 reset。语义 = 本次出击开始时间。
-		StartTime: proto.Uint32(uint32(time.Now().Unix())),
-		BattleStatistics:      []*protobuf.STRATEGYINFO_P13{},
-		FleetDuties:           payload.GetFleetDuties(),
-		MoveStepCount:         proto.Uint32(0),
-		SubmarineGroupList:    subGroups,
-		SupportGroupList:      supportGroups,
+		// 9.7 新增 required：不进则 proto.Marshal 失败、连接被 reset。
+		// 官服实测 start_time = time - 43200（两份样本：seq115 time=1790746481 / startTime=1790703281，差恰好 12h）。
+		StartTime:          proto.Uint32(uint32(time.Now().Unix()) + template.Time - chapterStartTimeOffset),
+		BattleStatistics:   []*protobuf.STRATEGYINFO_P13{},
+		FleetDuties:        payload.GetFleetDuties(),
+		MoveStepCount:      proto.Uint32(0),
+		SubmarineGroupList: subGroups,
+		SupportGroupList:   supportGroups,
 	}
 	return current, initShipCount, nil
 }
@@ -105,15 +110,16 @@ func buildCurrentChapterInfoKR(template *chapterTemplate, payload *protobuf.CS_1
 	mainGroups, mainCount := buildGroupsFromElite(payload.GetGroupIdList(), payload.GetEliteFleetList(), mainSpawns, template.AmmoTotal)
 	strategies := buildChapterStrategies(template.ChapterStrategy)
 	current := &protobuf.CURRENTCHAPTERINFO{
-		Id:                    proto.Uint32(payload.GetId()),
-		Time:                  proto.Uint32(uint32(time.Now().Unix()) + template.Time),
-		CellList:              cellList,
-		MainGroupList:         mainGroups,
-		AiList:                []*protobuf.CHAPTERCELLINFO_P13{},
-		EscortList:            []*protobuf.CHAPTERCELLINFO_P13{},
-		StartTime:             proto.Uint32(uint32(time.Now().Unix())),
-		Round:                 proto.Uint32(0),
-		IsSubmarineAutoAttack: proto.Uint32(0),
+		Id:            proto.Uint32(payload.GetId()),
+		Time:          proto.Uint32(uint32(time.Now().Unix()) + template.Time),
+		CellList:      cellList,
+		MainGroupList: mainGroups,
+		AiList:        []*protobuf.CHAPTERCELLINFO_P13{},
+		EscortList:    []*protobuf.CHAPTERCELLINFO_P13{},
+		StartTime:     proto.Uint32(uint32(time.Now().Unix()) + template.Time - chapterStartTimeOffset),
+		Round:         proto.Uint32(0),
+		// 官服实测 is_submarine_auto_attack=1（KR 分支同源，保持一致）。
+		IsSubmarineAutoAttack: proto.Uint32(1),
 		OperationBuff:         buildOperationBuffList(operationBuffID),
 		ModelActCount:         proto.Uint32(0),
 		BuffList:              []uint32{},
