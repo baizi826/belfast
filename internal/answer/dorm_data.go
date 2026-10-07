@@ -32,7 +32,7 @@ type dormSnapshot struct {
 
 func DormData(buffer *[]byte, client *connection.Client) (int, int, error) {
 	commanderID := client.Commander.CommanderID
-	if err := tickDormAndPush(client); err != nil {
+	if _, err := tickDormAndPush(client); err != nil {
 		return 0, 19001, err
 	}
 	snapshot, err := loadDormSnapshot(commanderID, client.Commander.DormName)

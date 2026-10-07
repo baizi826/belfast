@@ -13,6 +13,9 @@ const (
 	chapterAttachBorn         = 1
 	chapterAttachBox          = 2
 	chapterAttachSupply       = 3
+	// chapterSupplyAmmoAmount 补给格带的弹药量：官服抓包 2-4 是 type=3 id=3（模板 ammo_total=5 ✗），
+	// ALAS pick_up_ammo 也是「最多补 3」⇒ 固定 3。
+	chapterSupplyAmmoAmount = 3
 	chapterAttachBornSub      = 16
 	chapterAttachBoss         = 8
 	chapterAttachElite        = 4
@@ -20,6 +23,7 @@ const (
 	chapterAttachEnemy        = 6
 	chapterAttachTorpedoEnemy = 7
 	chapterAttachChampion     = 12
+	chapterAttachAreaBoss     = 11
 	chapterAttachTransport    = 17
 	chapterAttachTransportDst = 18
 	chapterAttachBombEnemy    = 24
@@ -27,6 +31,8 @@ const (
 	chapterCellActive         = 0
 	chapterCellDisabled       = 1
 	chapterCellAmbush         = 2
+	// chapterFlagBossPoint 官服 2-4 抓包在 BOSS 候选格上带的 flag（cell_flag_list → flag_list = [1]）。
+	chapterFlagBossPoint = 1
 )
 
 type chapterGrid struct {
@@ -72,7 +78,7 @@ func buildCurrentChapterInfo(template *chapterTemplate, payload *protobuf.CS_131
 		BuffList:              []uint32{},
 		LoopFlag:              proto.Uint32(payload.GetLoopFlag()),
 		ExtraFlagList:         []uint32{},
-		CellFlagList:          []*protobuf.CELLFLAG{},
+		CellFlagList:          buildChapterCellFlags(grids),
 		ChapterHp:             proto.Uint32(0),
 		ChapterStrategyList:   strategies,
 		KillCount:             proto.Uint32(0),
@@ -113,7 +119,7 @@ func buildCurrentChapterInfoKR(template *chapterTemplate, payload *protobuf.CS_1
 		BuffList:              []uint32{},
 		LoopFlag:              proto.Uint32(payload.GetLoopFlag()),
 		ExtraFlagList:         []uint32{},
-		CellFlagList:          []*protobuf.CELLFLAG{},
+		CellFlagList:          buildChapterCellFlags(grids),
 		ChapterHp:             proto.Uint32(0),
 		ChapterStrategyList:   strategies,
 		KillCount:             proto.Uint32(0),
@@ -133,6 +139,22 @@ func buildOperationBuffList(buffID uint32) []uint32 {
 		return []uint32{}
 	}
 	return []uint32{buffID}
+}
+
+// buildChapterCellFlags 对应官服 SC_13102 的 cell_flag_list：
+// 官服抓包 2-4 里带着 1 条 —— flag 落在 BOSS 候选格 (3,7) 上，flag_list = [1]（章节状态效果 1）。
+// ⚠️ flag 1 的确切语义没在客户端里查实（weather_data_template 只认 101~103，
+// chapter_status_effect[1] = {strategy: 90}），但既然官服就是在这个格子上发 1，
+// 而且客户端只按天气/中毒/空袭来查询 flag，多带这一个 flag 不影响其它逻辑。
+func buildChapterCellFlags(grids []chapterGrid) []*protobuf.CELLFLAG {
+	flags := make([]*protobuf.CELLFLAG, 0, 1)
+	for _, pos := range chapterGridPool(grids, chapterAttachBoss) {
+		flags = append(flags, &protobuf.CELLFLAG{
+			Pos:      buildPos(pos),
+			FlagList: []uint32{chapterFlagBossPoint},
+		})
+	}
+	return flags
 }
 
 func buildChapterStrategies(ids []uint32) []*protobuf.STRATEGYINFO_P13 {
@@ -176,12 +198,13 @@ func buildGroupsFromTeams(teams []*protobuf.TEAM_INFO, spawns []chapterPos, ammo
 			ShipStrategyList: []*protobuf.STRATEGYINFO_P13{},
 			StrategyIds:      []uint32{},
 			Bullet:           proto.Uint32(ammo),
-			StartPos:         buildPos(spawn),
-			CommanderList:    commanders,
-			MoveStepDown:     proto.Uint32(0),
-			KillCount:        proto.Uint32(0),
-			FleetId:          proto.Uint32(groupID),
-			VisionLv:         proto.Uint32(0),
+			// 官服抓包 2-4：start_pos = (0,0)。服务器不填它（required 子消息，所以得给个空值）。
+			StartPos:      buildPos(chapterPos{}),
+			CommanderList: commanders,
+			MoveStepDown:  proto.Uint32(0),
+			KillCount:     proto.Uint32(0),
+			FleetId:       proto.Uint32(groupID),
+			VisionLv:      proto.Uint32(0),
 		})
 	}
 	return groups, shipCount
@@ -229,7 +252,7 @@ func buildGroupsFromElite(groupIDs []uint32, elite []*protobuf.ELITEFLEETINFO, s
 			ShipStrategyList: []*protobuf.STRATEGYINFO_P13{},
 			StrategyIds:      []uint32{},
 			Bullet:           proto.Uint32(ammo),
-			StartPos:         buildPos(spawn),
+			StartPos:         buildPos(chapterPos{}),
 			CommanderList:    commanders,
 			MoveStepDown:     proto.Uint32(0),
 			KillCount:        proto.Uint32(0),
@@ -258,34 +281,121 @@ func buildCommanderList(mainID uint32, subID uint32) []*protobuf.COMMANDERSINFO 
 }
 
 func buildChapterCells(grids []chapterGrid, template *chapterTemplate) []*protobuf.CHAPTERCELLINFO_P13 {
+	return buildChapterCellsAtProgress(grids, template, 0)
+}
+
+// buildChapterCellsAtProgress 按官服刷怪节奏构建格子表。官服对照（抓包 2-4）：
+//   - 只下发可行走格（含空格 item_type=0；模板 28 格中恰好下发 22 格，与官服一致）；
+//   - 怪点位按 enemy_refresh 波次刷新，进图只出现第一波（2-4 = 2 只），清完一波补下一波；
+//   - BOSS 在累计击杀达到 boss_refresh（官服 2-4 = 第 3 杀时出现 BOSS 节点）后出现；
+//     9 章之后 progress_boss < 100，要反复击破 BOSS，但**同一时刻只亮一个 BOSS 节点**，
+//     其余 boss 格是「BOSS 重刷位置」，先当空格下发。
+func buildChapterCellsAtProgress(grids []chapterGrid, template *chapterTemplate, kills uint32) []*protobuf.CHAPTERCELLINFO_P13 {
+	return buildChapterCellsWithBossPlan(grids, template, kills, chapterBossPlan{})
+}
+
+// chapterBossPlan BOSS 刷怪计划。
+// 1-15 章：整张图只有 1 个 BOSS，击破即整图结算（同级 boss 格是「随机刷新点位」的候选）。
+// 16 章：多 BOSS —— 按 boss_expedition_id 序列一个个刷，每个可在随机点位出现。
+// Phase = 本局已击破的 BOSS 数（orm.ChapterProgress.KillBossCount）。
+type chapterBossPlan struct {
+	ChapterID  uint32
+	IDs        []uint32
+	Phase      uint32
+	MultiPhase bool
+}
+
+// next 返回当前应刷的 BOSS 远征 id；ok=false 表示这张图的 BOSS 已全部击破。
+func (plan chapterBossPlan) next(fallback uint32) (uint32, bool) {
+	limit := uint32(1)
+	if plan.MultiPhase {
+		if len(plan.IDs) == 0 {
+			return fallback, true
+		}
+		limit = uint32(len(plan.IDs))
+	}
+	if plan.Phase >= limit {
+		return 0, false
+	}
+	if len(plan.IDs) == 0 {
+		return fallback, true
+	}
+	return plan.IDs[plan.Phase], true
+}
+
+// pickCell 官服 BOSS 可在多个候选点位中随机一个刷新；这里用 (章节+已击破数) 做稳定取向，
+// 保证同一阶段重建/重进地图时 BOSS 不会乱跳。
+func (plan chapterBossPlan) pickCell(cells []chapterPos) (chapterPos, bool) {
+	if len(cells) == 0 {
+		return chapterPos{}, false
+	}
+	index := (uint32(plan.ChapterID) + plan.Phase) % uint32(len(cells))
+	return cells[index], true
+}
+
+func buildChapterCellsWithBossPlan(grids []chapterGrid, template *chapterTemplate, kills uint32, plan chapterBossPlan) []*protobuf.CHAPTERCELLINFO_P13 {
 	if len(grids) == 0 {
 		return []*protobuf.CHAPTERCELLINFO_P13{}
 	}
-	cells := make([]*protobuf.CHAPTERCELLINFO_P13, 0, len(grids))
-	var bossID uint32
+	step := chapterSpawnStepForBattle(template, kills)
+	enemyPool := chapterGridPool(grids, chapterAttachEnemy)
+	elitePool := chapterGridPool(grids, chapterAttachElite)
+	boxPool := chapterGridPool(grids, chapterAttachBox)
+	// 官服的怪点位是随机选的（抓包 2-4：进图两只在 (4,3)/(5,3)，不是点位表前两个）。
+	enemySlots := chapterRandomSlots(len(enemyPool), int(step.Enemies))
+	eliteSlots := chapterRandomSlots(len(elitePool), int(step.Elites))
+	boxSlots := chapterRandomSlots(len(boxPool), int(step.Boxes))
+	var fallbackBossID uint32
 	if template != nil && len(template.BossExpeditionID) > 0 {
-		bossID = template.BossExpeditionID[0]
+		fallbackBossID = template.BossExpeditionID[0]
 	}
+	bossID, bossAvailable := plan.next(fallbackBossID)
+	bossPos, bossFound := plan.pickCell(chapterGridPool(grids, chapterAttachBoss))
+	bossReady := bossFound && bossAvailable && step.Boss
+	cells := make([]*protobuf.CHAPTERCELLINFO_P13, 0, len(grids))
 	for _, grid := range grids {
-		if grid.Attachment == 0 {
+		if !grid.Walkable {
 			continue
 		}
+		pos := chapterPos{Row: grid.Row, Column: grid.Column}
 		cell := &protobuf.CHAPTERCELLINFO_P13{
-			Pos:      buildPos(chapterPos{Row: grid.Row, Column: grid.Column}),
+			Pos:      buildPos(pos),
 			ItemType: proto.Uint32(grid.Attachment),
 			ItemFlag: proto.Uint32(resolveCellFlag(grid.Attachment)),
 			ItemData: proto.Uint32(0),
 		}
-		if grid.Attachment == chapterAttachBoss && bossID != 0 {
-			cell.ItemId = proto.Uint32(bossID)
+		if grid.Attachment == chapterAttachEnemy {
+			// 未刷出的怪点位 = 空格；刷出来的（按 ALAS spawn_data 表）才变成 type=6。
+			if slot, ok := enemySlotIndex(enemyPool, pos); !ok || !enemySlots[slot] {
+				cell.ItemType = proto.Uint32(0)
+			} else if expeditionID := selectAttachmentForSlot(chapterAttachEnemy, template, slot); expeditionID != 0 {
+				cell.ItemId = proto.Uint32(expeditionID)
+			}
+		} else if grid.Attachment == chapterAttachElite && template != nil {
+			if slot, ok := enemySlotIndex(elitePool, pos); !ok || !eliteSlots[slot] {
+				cell.ItemType = proto.Uint32(0)
+			} else if eliteID := selectAttachmentForSlot(chapterAttachElite, template, slot); eliteID != 0 {
+				cell.ItemId = proto.Uint32(eliteID)
+			}
+		} else if grid.Attachment == chapterAttachBoss {
+			if !bossReady || pos != bossPos {
+				cell.ItemType = proto.Uint32(0)
+			} else if bossID != 0 {
+				cell.ItemId = proto.Uint32(bossID)
+			}
+		} else if grid.Attachment == chapterAttachBorn || grid.Attachment == chapterAttachBornSub {
+			// 官服抓包（2-4）22 格里没有 type=1：出生点当空格下发（点位由舰队 group 的 pos 表达）。
+			cell.ItemType = proto.Uint32(0)
 		} else if grid.Attachment == chapterAttachBox && template != nil {
-			if attachmentID := selectBoxAttachmentID(chapterPos{Row: grid.Row, Column: grid.Column}, template); attachmentID != 0 {
-				cell.ItemId = proto.Uint32(attachmentID)
+			if slot, ok := enemySlotIndex(boxPool, pos); !ok || !boxSlots[slot] {
+				cell.ItemType = proto.Uint32(0)
+			} else if boxID := selectAttachmentForSlot(chapterAttachBox, template, slot); boxID != 0 {
+				cell.ItemId = proto.Uint32(boxID)
 			}
 		} else if grid.Attachment == chapterAttachSupply && template != nil {
 			cell.ItemId = proto.Uint32(selectSupplyAttachmentAmount(template))
 		} else if grid.Attachment == chapterAttachLandbase && template != nil {
-			if attachmentID := selectPositionAttachmentID(chapterPos{Row: grid.Row, Column: grid.Column}, template.LandBased); attachmentID != 0 {
+			if attachmentID := selectPositionAttachmentID(pos, template.LandBased); attachmentID != 0 {
 				cell.ItemId = proto.Uint32(attachmentID)
 			}
 		} else if template != nil {
@@ -297,6 +407,124 @@ func buildChapterCells(grids []chapterGrid, template *chapterTemplate) []*protob
 		cells = append(cells, cell)
 	}
 	return cells
+}
+
+// chapterEnemyWaves 描述官服刷怪节奏：enemy_refresh 为每波刷出的敌人数（列表循环使用），
+// 累计击杀达到 num_2（★2 击破数，例：2-4 = 12）后 BOSS 出现。
+type chapterEnemyWaves struct {
+	waves  []uint32
+	target uint32
+}
+
+// chapterBossThreshold 官服 boss_refresh = 「累计击破多少队后 BOSS 节点出现」。
+// 抓包验证：2-4 模板 boss_refresh=3，官服第 3 杀时推送 type=8 的 BOSS 格。
+func chapterBossThreshold(template *chapterTemplate) uint32 {
+	if template == nil {
+		return 0
+	}
+	if template.BossRefresh > 0 {
+		return template.BossRefresh
+	}
+	return template.Num2
+}
+
+func chapterWavesOf(template *chapterTemplate) chapterEnemyWaves {
+	result := chapterEnemyWaves{}
+	if template != nil {
+		result.waves = append(result.waves, template.EnemyRefresh...)
+		result.target = template.Num2
+	}
+	if len(result.waves) == 0 {
+		result.waves = []uint32{1}
+	}
+	if result.target == 0 {
+		result.target = result.waves[0]
+	}
+	return result
+}
+
+// summary 由累计击杀数推导刷怪状态：已累计刷出数、当前存活怪占用的池下标、BOSS 是否出现。
+// 规则：一波全部被击破后补下一波（数量取 enemy_refresh 循环），刷出总数不超过 target。
+func (waves chapterEnemyWaves) summary(kills uint32, poolSize uint32) (spawned uint32, alive map[uint32]bool, boss bool) {
+	alive = map[uint32]bool{}
+	if poolSize == 0 {
+		return 0, alive, false
+	}
+	spawned = waves.waves[0]
+	if spawned > waves.target {
+		spawned = waves.target
+	}
+	var lastSpawned uint32
+	index := 0
+	for kills >= spawned && spawned < waves.target {
+		next := waves.waves[(index+1)%len(waves.waves)]
+		if spawned+next > waves.target {
+			next = waves.target - spawned
+		}
+		if next == 0 {
+			break
+		}
+		index++
+		lastSpawned = spawned
+		spawned += next
+	}
+	deaths := kills - lastSpawned
+	for slot := lastSpawned; slot < spawned; slot++ {
+		if slot-lastSpawned < deaths {
+			continue
+		}
+		alive[slot%poolSize] = true
+	}
+	return spawned, alive, kills >= waves.target
+}
+
+func enemySlotIndex(pool []chapterPos, pos chapterPos) (uint32, bool) {
+	for index, candidate := range pool {
+		if candidate == pos {
+			return uint32(index), true
+		}
+	}
+	return 0, false
+}
+
+// selectExpeditionForSlot 给怪点位固定一个远征 ID（模板权重表按池下标取），
+// 保证同一地图重建、重进时怪 ID 稳定。
+func selectExpeditionForSlot(template *chapterTemplate, slot uint32) uint32 {
+	if template == nil || len(template.ExpeditionWeight) == 0 {
+		return 0
+	}
+	entry := template.ExpeditionWeight[int(slot)%len(template.ExpeditionWeight)]
+	if len(entry) == 0 {
+		return 0
+	}
+	id, err := parseUint32(entry[0])
+	if err != nil {
+		return 0
+	}
+	return id
+}
+
+// diffChapterCells 找出两张格子表中内容变化的格（官服 13105 只推变化的格）。
+func diffChapterCells(before []*protobuf.CHAPTERCELLINFO_P13, after []*protobuf.CHAPTERCELLINFO_P13) []*protobuf.CHAPTERCELLINFO_P13 {
+	index := make(map[chapterCellKey]*protobuf.CHAPTERCELLINFO_P13, len(before))
+	for _, cell := range before {
+		index[chapterCellPositionKey(cell)] = cell
+	}
+	changed := make([]*protobuf.CHAPTERCELLINFO_P13, 0, len(after))
+	for _, cell := range after {
+		if old, ok := index[chapterCellPositionKey(cell)]; ok &&
+			old.GetItemType() == cell.GetItemType() &&
+			old.GetItemId() == cell.GetItemId() &&
+			old.GetItemFlag() == cell.GetItemFlag() {
+			continue
+		}
+		changed = append(changed, cell)
+	}
+	return changed
+}
+
+func chapterCellPositionKey(cell *protobuf.CHAPTERCELLINFO_P13) chapterCellKey {
+	return chapterCellKey{Row: cell.GetPos().GetRow(), Column: cell.GetPos().GetColumn()}
 }
 
 func resolveCellFlag(attachment uint32) uint32 {
@@ -334,13 +562,8 @@ func selectAttachmentID(attachment uint32, template *chapterTemplate) uint32 {
 }
 
 func selectSupplyAttachmentAmount(template *chapterTemplate) uint32 {
-	if template == nil {
-		return 1
-	}
-	if template.AmmoTotal != 0 {
-		return template.AmmoTotal
-	}
-	return 1
+	// 官服按固定 3 发（见 chapterSupplyAmmoAmount 注释），不用 ammo_total（那是舰队弹量上限）。
+	return chapterSupplyAmmoAmount
 }
 
 func selectBoxAttachmentID(pos chapterPos, template *chapterTemplate) uint32 {

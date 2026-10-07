@@ -611,6 +611,7 @@ func registerPackets() {
 	packets.RegisterPacketHandler(19004, []packets.PacketHandler{answer.ExitDormShip})
 	packets.RegisterPacketHandler(19006, []packets.PacketHandler{answer.BuyDormFurniture})
 	packets.RegisterPacketHandler(19008, []packets.PacketHandler{answer.SaveDormFurnitureLayout})
+	packets.RegisterPacketHandler(19009, []packets.PacketHandler{answer.DormPopPoll})
 	packets.RegisterPacketHandler(19011, []packets.PacketHandler{answer.ClaimDormIntimacy})
 	packets.RegisterPacketHandler(19013, []packets.PacketHandler{answer.ClaimDormMoney})
 	packets.RegisterPacketHandler(19015, []packets.PacketHandler{answer.PollDormExpEvents})

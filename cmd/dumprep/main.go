@@ -36,13 +36,9 @@ func main() {
 	}
 
 	var m proto.Message
-	switch id {
-	case 11003:
-		m = &protobuf.SC_11003{}
-	case 11008:
-		m = &protobuf.SC_11008{}
-	default:
-		fmt.Fprintf(os.Stderr, "还没支持包号 %d（在 switch 里加一行即可）\n", id)
+	m, err = protobuf.MessageForCmd(id)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
 	if err := proto.Unmarshal(data, m); err != nil {

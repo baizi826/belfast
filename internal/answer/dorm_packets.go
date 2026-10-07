@@ -383,8 +383,28 @@ func PollDormExpEvents(buffer *[]byte, client *connection.Client) (int, int, err
 	// Client does not expect a direct response.
 	// We use this as a tick/poll entrypoint to push dorm pop events.
 	_ = buffer
-	_ = tickDormAndPush(client)
+	_, _ = tickDormAndPush(client)
 	return 0, 0, nil
+}
+
+// DormPopPoll 处理 CS_19009：客户端每 6 秒轮询一次后宅泡列表。
+// 关键：无论有没有新泡都必须回一个 SC_19010（空表也要回）。
+// 请求悬空会让客户端判定“服务器连接断开”（ConnectionReset）→ 无限重连，
+// 表现为登录后什么都没做就被踢回登录界面。
+func DormPopPoll(buffer *[]byte, client *connection.Client) (int, int, error) {
+	var request protobuf.CS_19009
+	if err := proto.Unmarshal(*buffer, &request); err != nil {
+		return 0, 19010, err
+	}
+	pushed, err := tickDormAndPush(client)
+	if err != nil {
+		return 0, 19010, err
+	}
+	if pushed {
+		return 0, 0, nil
+	}
+	resp := protobuf.SC_19010{PopList: []*protobuf.POP_INFO{}}
+	return client.SendMessage(19010, &resp)
 }
 
 func RenameDorm(buffer *[]byte, client *connection.Client) (int, int, error) {

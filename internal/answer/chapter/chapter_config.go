@@ -16,14 +16,28 @@ import (
 const (
 	chapterTemplateCategory     = "sharecfgdata/chapter_template.json"
 	chapterTemplateLoopCategory = "sharecfgdata/chapter_template_loop.json"
+	chapterAutoStatisticsCat    = "ShareCfg/chapter_auto_statistics.json"
 	itemDataStatsCategory       = "sharecfgdata/item_data_statistics.json"
 	benefitBuffCategory         = "ShareCfg/benefit_buff_template.json"
 	friendlyDataCategory        = "ShareCfg/friendly_data_template.json"
 	friendlyDataShareCategory   = "sharecfgdata/friendly_data_template.json"
 )
 
+// chapterAutoStatistics 官服「自动战斗统计表」。
+//   - boss_expedition_id：BOSS 舰队的候选 id。**1-15 章只有 1 个 BOSS**（打掉就整图结算，
+//     多条候选是同一个 BOSS 每次刷新时可在随机点位/编成出现的候选）；
+//   - **16 章才是多 BOSS**（16-x = 4 个，需按序列反复击破）；
+//   - oil_limit = 锁油上限（9 章之后的锁油机制，9-1=182 … 16-1=355）。
+type chapterAutoStatistics struct {
+	ID               uint32   `json:"id"`
+	OilLimit         uint32   `json:"oil_limit"`
+	EnemyTimes       uint32   `json:"enemy_times"`
+	BossExpeditionID []uint32 `json:"boss_expedition_id"`
+}
+
 type chapterTemplate struct {
 	ID                 uint32       `json:"id"`
+	Map                uint32       `json:"map"`
 	Grids              [][]any      `json:"grids"`
 	BoxList            [][]any      `json:"box_list"`
 	RandomBoxList      []uint32     `json:"random_box_list"`
@@ -40,6 +54,11 @@ type chapterTemplate struct {
 	AmbushRatioExtra   [][]int32    `json:"ambush_ratio_extra"`
 	ChapterStrategy    []uint32     `json:"chapter_strategy"`
 	BossExpeditionID   []uint32     `json:"boss_expedition_id"`
+	EnemyRefresh       []uint32     `json:"enemy_refresh"`
+	EliteRefresh       []uint32     `json:"elite_refresh"`
+	AiRefresh          []uint32     `json:"ai_refresh"`
+	BoxRefresh         []uint32     `json:"box_refresh"`
+	BossRefresh        uint32       `json:"boss_refresh"`
 	ExpeditionWeight   [][]any      `json:"expedition_id_weight_list"`
 	EliteExpeditions   []uint32     `json:"elite_expedition_list"`
 	AmbushExpeditions  []uint32     `json:"ambush_expedition_list"`
@@ -149,6 +168,23 @@ func loadChapterTemplate(chapterID uint32, loopFlag uint32) (*chapterTemplate, e
 		return nil, err
 	}
 	return &template, nil
+}
+
+// loadChapterAutoStatistics 读取官服自动战斗统计表（BOSS 舰队序列 / 锁油上限）。
+// 查不到时返回 (nil, nil)，调用方回退到模板里的单个 boss_expedition_id。
+func loadChapterAutoStatistics(chapterID uint32) (*chapterAutoStatistics, error) {
+	entry, err := orm.GetConfigEntry(chapterAutoStatisticsCat, fmt.Sprintf("%d", chapterID))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var stats chapterAutoStatistics
+	if err := json.Unmarshal(entry.Data, &stats); err != nil {
+		return nil, err
+	}
+	return &stats, nil
 }
 
 func loadItemUsageArg(itemID uint32) ([]uint32, error) {

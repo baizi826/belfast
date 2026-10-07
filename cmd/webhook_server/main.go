@@ -1,3 +1,7 @@
+//go:build !windows
+
+// 这个 server 用进程组管理子进程（syscall.SysProcAttr.Setpgid / syscall.Kill），
+// Unix 专有；Windows 上整个命令不参与构建（否则 `go build ./...` 会报未定义符号）。
 package main
 
 import (

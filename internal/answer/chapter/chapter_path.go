@@ -1,11 +1,25 @@
 package chapter
 
+import "github.com/ggmolly/belfast/internal/protobuf"
+
 type chapterCellKey struct {
 	Row    uint32
 	Column uint32
 }
 
-func findMovePath(grids []chapterGrid, start chapterPos, end chapterPos) []chapterPos {
+// chapterCellBlocksMove 对应客户端 chapterleveldata.lua 的 considerAsObstacle(SubjectPlayer, row, col)：
+// 格子上有「flag==active 的敌方附件」（存活小怪/精英/伏击/BOSS/多阶段BOSS…）就算障碍 ——
+// 客户端给它 PrioObstacle(=1000)，A* 直接当墙，所以活怪堵路、跨不过去（只能停在它上面开打）。
+// 被击沉(flag==disabled)的怪格不是障碍，可以走过去。
+func chapterCellBlocksMove(state *protobuf.CURRENTCHAPTERINFO, row, column uint32) bool {
+	_, cell := findChapterCellAt(state, chapterPos{Row: row, Column: column})
+	if cell == nil || cell.GetItemFlag() != chapterCellActive {
+		return false
+	}
+	return isChapterEnemyAttachment(cell.GetItemType())
+}
+
+func findMovePath(grids []chapterGrid, state *protobuf.CURRENTCHAPTERINFO, start chapterPos, end chapterPos) []chapterPos {
 	if start == end {
 		return []chapterPos{start}
 	}
@@ -19,6 +33,17 @@ func findMovePath(grids []chapterGrid, start chapterPos, end chapterPos) []chapt
 	endKey := chapterCellKey{Row: end.Row, Column: end.Column}
 	if !walkable[startKey] || !walkable[endKey] {
 		return nil
+	}
+	// 终点豁免：客户端把终点的优先级强制成 PrioNormal（considerAsStayPoint），
+	// 所以终点可以是怪格 —— 走过去就是打它。中途的活怪不豁免。
+	blocked := func(key chapterCellKey) bool {
+		if !walkable[key] {
+			return true
+		}
+		if key == startKey || key == endKey {
+			return false
+		}
+		return chapterCellBlocksMove(state, key.Row, key.Column)
 	}
 	queue := []chapterCellKey{startKey}
 	visited := map[chapterCellKey]bool{startKey: true}
@@ -39,7 +64,7 @@ func findMovePath(grids []chapterGrid, start chapterPos, end chapterPos) []chapt
 			neighbors = append(neighbors, chapterCellKey{Row: current.Row, Column: current.Column - 1})
 		}
 		for _, neighbor := range neighbors {
-			if visited[neighbor] || !walkable[neighbor] {
+			if visited[neighbor] || blocked(neighbor) {
 				continue
 			}
 			visited[neighbor] = true

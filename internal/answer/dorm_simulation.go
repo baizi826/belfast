@@ -192,7 +192,7 @@ WHERE owner_id = $1
 	return &dormTickResult{PopList: popList, ExpGained: expGained, FoodConsume: foodConsume}, nil
 }
 
-func tickDormAndPush(client *connection.Client) error {
+func tickDormAndPush(client *connection.Client) (bool, error) {
 	commanderID := client.Commander.CommanderID
 	now := uint32(time.Now().Unix())
 
@@ -207,14 +207,14 @@ func tickDormAndPush(client *connection.Client) error {
 		return nil
 	})
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	if res != nil && len(res.PopList) > 0 {
 		_, _, err := client.SendMessage(19010, &protobuf.SC_19010{PopList: res.PopList})
-		return err
+		return true, err
 	}
-	return nil
+	return false, nil
 }
 
 func saveDormOwnedShipTx(ctx context.Context, tx pgx.Tx, ship *orm.OwnedShip) error {
