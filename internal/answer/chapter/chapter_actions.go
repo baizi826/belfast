@@ -98,9 +98,10 @@ func HandleChapterAction(buffer *[]byte, client *connection.Client) (int, int, e
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{
-			Result:    proto.Uint32(0),
-			MovePath:  movePath,
-			MapUpdate: mapUpdate,
+			Result:               proto.Uint32(0),
+			MovePath:             movePath,
+			MapUpdate:            mapUpdate,
+			AutoBattleTimeUpdate: proto.Uint32(0),
 		}
 		return client.SendMessage(13104, &response)
 	case chapterOpAmbush:
@@ -149,12 +150,13 @@ func HandleChapterAction(buffer *[]byte, client *connection.Client) (int, int, e
 			return 0, 13104, err
 		}
 		response := protobuf.SC_13104{
-			Result:       proto.Uint32(0),
-			MapUpdate:    mapUpdate,
-			ShipUpdate:   collectChapterShips(&current),
-			AiList:       current.GetAiList(),
-			BuffList:     current.GetBuffList(),
-			CellFlagList: current.GetCellFlagList(),
+			Result:               proto.Uint32(0),
+			MapUpdate:            mapUpdate,
+			ShipUpdate:           collectChapterShips(&current),
+			AiList:               current.GetAiList(),
+			BuffList:             current.GetBuffList(),
+			CellFlagList:         current.GetCellFlagList(),
+			AutoBattleTimeUpdate: proto.Uint32(0),
 		}
 		return client.SendMessage(13104, &response)
 	case chapterOpSupply:
@@ -194,16 +196,17 @@ func HandleChapterAction(buffer *[]byte, client *connection.Client) (int, int, e
 		if err := orm.UpsertChapterState(state); err != nil {
 			return 0, 13104, err
 		}
-		response := protobuf.SC_13104{Result: proto.Uint32(0)}
+		response := protobuf.SC_13104{Result: proto.Uint32(0), AutoBattleTimeUpdate: proto.Uint32(0)}
 		return client.SendMessage(13104, &response)
 	case chapterOpRequest:
 		response := protobuf.SC_13104{
-			Result:       proto.Uint32(0),
-			MapUpdate:    current.GetCellList(),
-			ShipUpdate:   collectChapterShips(&current),
-			AiList:       current.GetAiList(),
-			BuffList:     current.GetBuffList(),
-			CellFlagList: current.GetCellFlagList(),
+			Result:               proto.Uint32(0),
+			MapUpdate:            current.GetCellList(),
+			ShipUpdate:           collectChapterShips(&current),
+			AiList:               current.GetAiList(),
+			BuffList:             current.GetBuffList(),
+			CellFlagList:         current.GetCellFlagList(),
+			AutoBattleTimeUpdate: proto.Uint32(0),
 		}
 		return client.SendMessage(13104, &response)
 	case chapterOpEnemyRound:
@@ -217,18 +220,18 @@ func HandleChapterAction(buffer *[]byte, client *connection.Client) (int, int, e
 		if err := orm.UpsertChapterState(state); err != nil {
 			return 0, 13104, err
 		}
-		// 官服应答只有 result（抓包 0800800100），不重推整张格子表。
-		response := protobuf.SC_13104{Result: proto.Uint32(0)}
+		// 官服应答只有 result + auto_battle_time_update，不重推整张格子表（抓包 seq118：{result:0, autoBattleTimeUpdate:0}）。
+		response := protobuf.SC_13104{Result: proto.Uint32(0), AutoBattleTimeUpdate: proto.Uint32(0)}
 		return client.SendMessage(13104, &response)
 	case chapterOpActivate:
-		// 官服进图后立刻发一次，应答仅 result=0（抓包 0800）。
+		// 官服进图后立刻发一次，应答仅 result=0，**不带** auto_battle_time_update（抓包 seq116：字节 0800）。
 		response := protobuf.SC_13104{Result: proto.Uint32(0)}
 		return client.SendMessage(13104, &response)
 	case chapterOpRetreat:
 		if err := orm.DeleteChapterState(client.Commander.CommanderID); err != nil {
 			return 0, 13104, err
 		}
-		response := protobuf.SC_13104{Result: proto.Uint32(0)}
+		response := protobuf.SC_13104{Result: proto.Uint32(0), AutoBattleTimeUpdate: proto.Uint32(0)}
 		return client.SendMessage(13104, &response)
 	default:
 		response := protobuf.SC_13104{Result: proto.Uint32(1)}
