@@ -64,6 +64,13 @@ func CommanderStoryProgress(buffer *[]byte, client *connection.Client) (int, int
 		})
 	}
 	response.ChapterList = chapterList
+	// 进行中的自动作战（周回）队列。客户端 ChapterAutoProxy 靠这份列表画进度、
+	// 判断"已完成待领取"，缺失时界面恒为空。同一份编码也用于 SC_13013/13019。
+	autoList, err := BuildChapterAutoBattleList(client.Commander.CommanderID)
+	if err != nil {
+		return 0, 13001, err
+	}
+	response.ChapterAutoBattleList = autoList
 	response.ReactChapter = &protobuf.REACTCHAPTER_INFO{
 		Count:           proto.Uint32(state.TicketCount),
 		ActiveTimestamp: proto.Uint32(uint32(state.LastDailyResetAt.Unix())),

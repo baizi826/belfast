@@ -58,6 +58,28 @@ func GetChapterDropShipList(buffer *[]byte, client *connection.Client) (int, int
 	return answerchapter.GetChapterDropShipList(buffer, client)
 }
 
+// 自动作战（周回）：13012/13014/13016/13018。
+func HandleChapterAutoStart(buffer *[]byte, client *connection.Client) (int, int, error) {
+	return answerchapter.HandleChapterAutoStart(buffer, client)
+}
+
+func HandleChapterAutoClaim(buffer *[]byte, client *connection.Client) (int, int, error) {
+	return answerchapter.HandleChapterAutoClaim(buffer, client)
+}
+
+func HandleChapterAutoUseTicket(buffer *[]byte, client *connection.Client) (int, int, error) {
+	return answerchapter.HandleChapterAutoUseTicket(buffer, client)
+}
+
+func HandleChapterAutoBatch(buffer *[]byte, client *connection.Client) (int, int, error) {
+	return answerchapter.HandleChapterAutoBatch(buffer, client)
+}
+
+// BuildChapterAutoBattleList 让 13001 的推送复用同一份编码。
+func BuildChapterAutoBattleList(commanderID uint32) ([]*protobuf.CHAPTER_AUTO_BATTLE, error) {
+	return answerchapter.BuildChapterAutoBattleList(commanderID)
+}
+
 func RemoveEliteTargetShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	return answerchapter.RemoveEliteTargetShip(buffer, client)
 }

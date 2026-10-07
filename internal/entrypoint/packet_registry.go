@@ -233,6 +233,11 @@ func registerPackets() {
 	packets.RegisterPacketHandler(13007, []packets.PacketHandler{answer.EventGiveUp})
 	packets.RegisterPacketHandler(13009, []packets.PacketHandler{answer.EventFlush})
 	packets.RegisterPacketHandler(13005, []packets.PacketHandler{answer.EventFinish})
+	// 自动作战（周回）：开始 / 领取 / 用票券 / 批量开始。
+	packets.RegisterPacketHandler(13012, []packets.PacketHandler{answer.HandleChapterAutoStart})
+	packets.RegisterPacketHandler(13014, []packets.PacketHandler{answer.HandleChapterAutoClaim})
+	packets.RegisterPacketHandler(13016, []packets.PacketHandler{answer.HandleChapterAutoUseTicket})
+	packets.RegisterPacketHandler(13018, []packets.PacketHandler{answer.HandleChapterAutoBatch})
 	packets.RegisterPacketHandler(11751, []packets.PacketHandler{answer.RefluxRequestData})
 	packets.RegisterPacketHandler(11722, []packets.PacketHandler{answer.InstagramChatActivateTopic})
 	packets.RegisterPacketHandler(11005, []packets.PacketHandler{answer.AttireApply})

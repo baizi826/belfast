@@ -28,10 +28,17 @@ const (
 //     多条候选是同一个 BOSS 每次刷新时可在随机点位/编成出现的候选）；
 //   - **16 章才是多 BOSS**（16-x = 4 个，需按序列反复击破）；
 //   - oil_limit = 锁油上限（9 章之后的锁油机制，9-1=182 … 16-1=355）。
+//
+// time_rate / time_correction 是客户端 GetFixTime 用的那组参数
+// （chapterautoproxy.lua:350 `floor(seconds * time_rate) + time_correction`）。
 type chapterAutoStatistics struct {
 	ID               uint32   `json:"id"`
 	OilLimit         uint32   `json:"oil_limit"`
 	EnemyTimes       uint32   `json:"enemy_times"`
+	TimeRate         float64  `json:"time_rate"`
+	TimeCorrection   uint32   `json:"time_correction"`
+	BaseClassExp     uint32   `json:"base_class_exp"`
+	DropExpBook      uint32   `json:"drop_expbook"`
 	BossExpeditionID []uint32 `json:"boss_expedition_id"`
 }
 
