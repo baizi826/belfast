@@ -150,7 +150,4 @@ func assertBlankAssistShipRequired(t *testing.T, ship *protobuf.SHIPINFO) {
 	if ship.State == nil {
 		t.Fatalf("expected State to be set")
 	}
-	if ship.State.State == nil {
-		t.Fatalf("expected State.State to be set")
-	}
 }

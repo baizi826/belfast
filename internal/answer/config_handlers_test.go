@@ -486,8 +486,9 @@ func TestPermanentActivitiesUsesConfig(t *testing.T) {
 	if len(response.GetPermanentActivity()) != 2 || response.GetPermanentActivity()[0] != 6000 || response.GetPermanentActivity()[1] != 6001 {
 		t.Fatalf("expected permanent activity list to include 6000 and 6001")
 	}
-	if response.GetPermanentNow() != 6001 {
-		t.Fatalf("expected permanent now to be 6001")
+	// permanent_now 是 repeated（实现里固定发当前活动的单元素切片）。
+	if now := response.GetPermanentNow(); len(now) != 1 || now[0] != 6001 {
+		t.Fatalf("expected permanent now to be [6001], got %v", now)
 	}
 }
 
