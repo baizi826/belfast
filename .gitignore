@@ -27,3 +27,6 @@ wg/
 web/src/node_modules
 web/src/package-lock.json
 AzurLane*
+
+# schemadiff 的输出（临时产物）
+r.txt
