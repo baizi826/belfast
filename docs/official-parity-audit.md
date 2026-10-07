@@ -64,6 +64,8 @@ fleet_duties=[{1:1},{2:2}], move_step_count=0
 | 3 | 进图包 | `is_submarine_auto_attack=1` | 0 | 1 |
 | 4 | 进图包 | `cell_flag_list` 带 1 条（BOSS 候选格 + `flag_list=[1]`） | 空数组 | `buildChapterCellFlags` |
 | 5 | 移动合法性 | 客户端禁止移动到**已有舰队**的格子上（`considerAsStayPoint`） | 未实现（低风险，暂缓） | —— |
+| 6 | 进图包 | `start_time = time - 43200`（两份样本确认：`time=1790746481` / `startTime=1790703281`，差恰好 12h） | `start_time = now` | `chapterStartTimeOffset`（`chapter_state_builder.go`）|
+| 7 | 13103 应答 | `SC_13104` 除 `act=9` 外**显式带** `auto_battle_time_update=0`（线格式 `1: int 0` + `16: int 0` = 5 字节；`act=9` 只有 `0800` = 2 字节） | 只发 `result` | move/ambush/supply/request/enemyRound/retreat 补该字段 |
 
 （#5 记为待办：目前只有单舰队出击时不影响。）
 
@@ -80,9 +82,7 @@ fleet_duties=[{1:1},{2:2}], move_step_count=0
 
 - `cell_flag_list` 里 flag 1 的确切语义：不是天气（`weather_data_template` 只有 101~103），
   是 `chapter_status_effect[1]={strategy:90}`。照官服字节发，语义待定。
-- `time` / `start_time`：官服 `start_time = time - 43200`（正好 12h）。我们发 `time = now + 模板 time`、
-  `start_time = now`。只有一份样本，无法判定是不是「进入章节时刻」。
-- `SC_13104` 的 `auto_battle_time_update`：值为 0，默认值等价，是否要显式发待定。
+- `time` 是否应含模板 `time` 偏移：绝对值仍无定论（第 2 份样本只确认 Δ=43200 恒定）。当前实现保留 `time = now + 模板 time`。
 - 526 个 handler 没有官服样本（`cmd/capdump` 的 `_cmds.txt` 只有 130 种回复的字段清单）。
   要再扩大覆盖面，只能在官服上多抓：每个 UI 操作一次，跑一遍。
 
