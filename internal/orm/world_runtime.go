@@ -40,6 +40,7 @@ type WorldRuntime struct {
 	WeekStartUnix             uint32            `json:"week_start_unix,omitempty"`
 	MonthKey                  uint32            `json:"month_key,omitempty"`
 	SairenChapter             []uint32          `json:"sairen_chapter,omitempty"`
+	ClearedChapters           []uint32          `json:"cleared_chapters,omitempty"`
 	MapTemplateByRandomID     map[string]uint32 `json:"map_template_by_random_id,omitempty"`
 	FleetShipIDs              []uint32          `json:"fleet_ship_ids,omitempty"`
 	CommanderIDs              []uint32          `json:"commander_ids,omitempty"`
@@ -117,6 +118,31 @@ func (runtime *WorldRuntime) MapTemplate(randomID uint32) uint32 {
 		return 0
 	}
 	return runtime.MapTemplateByRandomID[strconv.FormatUint(uint64(randomID), 10)]
+}
+
+// MarkChapterCleared 记录一个随机海域已被压制，幂等。
+//
+// 存的是 world_chapter_random 的 id（random_id），不是 template id —— 官方
+// SC_33001.clean_chapter 的 127 个值全部命中的是前者，template 表 0 命中。
+// 返回值表示本次是否真的新增，调用方据此决定要不要落盘。
+func (runtime *WorldRuntime) MarkChapterCleared(randomID uint32) bool {
+	if randomID == 0 {
+		return false
+	}
+	if runtime.IsChapterCleared(randomID) {
+		return false
+	}
+	runtime.ClearedChapters = append(runtime.ClearedChapters, randomID)
+	return true
+}
+
+func (runtime *WorldRuntime) IsChapterCleared(randomID uint32) bool {
+	for _, cleared := range runtime.ClearedChapters {
+		if cleared == randomID {
+			return true
+		}
+	}
+	return false
 }
 
 func LoadWorldMovePowerSettings() (uint32, uint32, error) {

@@ -27,10 +27,11 @@ func WorldCheckInfo(buffer *[]byte, client *connection.Client) (int, int, error)
 		isWorldOpen = 1
 	}
 	response := protobuf.SC_33001{
-		World:       buildWorldInfo(runtime),
-		IsWorldOpen: proto.Uint32(isWorldOpen),
-		Camp:        proto.Uint32(runtime.Camp),
-		CountInfo:   buildWorldCountInfo(runtime),
+		World:        buildWorldInfo(runtime),
+		IsWorldOpen:  proto.Uint32(isWorldOpen),
+		Camp:         proto.Uint32(runtime.Camp),
+		CountInfo:    buildWorldCountInfo(runtime),
+		CleanChapter: buildWorldCleanChapter(runtime),
 	}
 	return client.SendMessage(33001, &response)
 }

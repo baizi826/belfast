@@ -40,6 +40,19 @@ func buildWorldInfo(runtime *orm.WorldRuntime) *protobuf.WORLDINFO {
 	}
 }
 
+// buildWorldCleanChapter 发 SC_33001.clean_chapter —— 已压制的海域列表。
+//
+// 存的是 world_chapter_random 的 id：官方那次抓包的 127 个值全部命中该表，
+// world_chapter_template 表 0 命中。客户端拿去喂 NetUpdateWorldMapPressing。
+func buildWorldCleanChapter(runtime *orm.WorldRuntime) []uint32 {
+	if runtime == nil || len(runtime.ClearedChapters) == 0 {
+		return []uint32{}
+	}
+	out := make([]uint32, len(runtime.ClearedChapters))
+	copy(out, runtime.ClearedChapters)
+	return out
+}
+
 func buildWorldCountInfo(runtime *orm.WorldRuntime) *protobuf.COUNTINFO {
 	activateCount := uint32(0)
 	if runtime.MapID > 0 {

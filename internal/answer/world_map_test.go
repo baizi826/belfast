@@ -1,6 +1,10 @@
 package answer
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/ggmolly/belfast/internal/orm"
+)
 
 // 用官方抓包 captures/req33106_rep33107_00.txt 的形状做样本：
 //
@@ -70,11 +74,27 @@ func TestBuildWorldPosListSkipsUnwalkableGrids(t *testing.T) {
 	}
 }
 
-// flag 3 = "这包带着可用的格子数据"。1（已通关）/ 2（有视野）我们还没落库，不能宣称。
-func TestBuildWorldStateFlagOnlyClaimsCellData(t *testing.T) {
-	flags := buildWorldStateFlag()
-	if len(flags) != 1 || flags[0] != worldMapFlagHasCells {
-		t.Fatalf("expected exactly [%d], got %v", worldMapFlagHasCells, flags)
+// flag 3 = "这包带着可用的格子数据"；海域已压制时额外带 flag 1（客户端 UpdateClearFlag）。
+func TestBuildWorldStateFlagReflectsClearState(t *testing.T) {
+	notCleared := buildWorldStateFlag(&orm.WorldRuntime{}, 40000)
+	if len(notCleared) != 1 || notCleared[0] != worldMapFlagHasCells {
+		t.Fatalf("uncleared map → expected exactly [%d], got %v", worldMapFlagHasCells, notCleared)
+	}
+
+	runtime := &orm.WorldRuntime{}
+	if !runtime.MarkChapterCleared(40000) {
+		t.Fatalf("first MarkChapterCleared should report a change")
+	}
+	if runtime.MarkChapterCleared(40000) {
+		t.Fatalf("MarkChapterCleared must be idempotent")
+	}
+	cleared := buildWorldStateFlag(runtime, 40000)
+	if len(cleared) != 2 || cleared[0] != worldMapFlagCleared || cleared[1] != worldMapFlagHasCells {
+		t.Fatalf("cleared map → expected [%d %d], got %v", worldMapFlagCleared, worldMapFlagHasCells, cleared)
+	}
+	// 另一个海域不应受影响。
+	if other := buildWorldStateFlag(runtime, 40001); len(other) != 1 || other[0] != worldMapFlagHasCells {
+		t.Fatalf("a different random_id must not inherit the clear flag, got %v", other)
 	}
 }
 

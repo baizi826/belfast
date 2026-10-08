@@ -277,7 +277,7 @@ func WorldMapRequest(buffer *[]byte, client *connection.Client) (int, int, error
 	response.Map = &protobuf.MAPINFO{
 		Id:        &protobuf.WORLDMAPID{RandomId: proto.Uint32(payload.GetId()), TemplateId: proto.Uint32(templateID)},
 		CellList:  []*protobuf.CHAPTERCELLINFO_P33{},
-		StateFlag: buildWorldStateFlag(),
+		StateFlag: buildWorldStateFlag(runtime, payload.GetId()),
 		LandList:  buildWorldLandList(template),
 		PosList:   buildWorldPosList(template),
 	}
@@ -960,6 +960,9 @@ func decodeJSONValue(raw json.RawMessage) (any, error) {
 // 即 1=已通关、2=有视野、3=本包带了可用的格子数据。
 const worldMapFlagHasCells = 3
 
+// worldMapFlagCleared 对应客户端的 UpdateClearFlag（已通关）。
+const worldMapFlagCleared = 1
+
 // worldChapterTemplateConfig 只取重建地图需要的两个数组：
 //
 //	grids   = [[x, y, walkable], ...]
@@ -988,10 +991,13 @@ func loadWorldChapterTemplate(templateID uint32) (*worldChapterTemplateConfig, e
 	return &cfg, nil
 }
 
-// buildWorldStateFlag 只置 flag 3（附带格子数据）。
-// 通关(1)与视野(2)状态还没有落库，所以不宣称 —— 宁可让客户端认为这图没打过。
-// 官方那次抓包（captures/req33106_rep33107_00.txt）也是 [3]。
-func buildWorldStateFlag() []uint32 {
+// buildWorldStateFlag 返回 SC_33107 的 state_flag。
+// 总是置 flag 3（本包带着可用的格子数据）；海域已压制时额外置 flag 1。
+// flag 2（视野）还没落库，不宣称。
+func buildWorldStateFlag(runtime *orm.WorldRuntime, randomID uint32) []uint32 {
+	if runtime != nil && runtime.IsChapterCleared(randomID) {
+		return []uint32{worldMapFlagCleared, worldMapFlagHasCells}
+	}
 	return []uint32{worldMapFlagHasCells}
 }
 
