@@ -26,6 +26,7 @@ const (
 
 	worldChapterRandomCategory   = "ShareCfg/world_chapter_random.json"
 	worldChapterRandomCategoryLC = "sharecfgdata/world_chapter_random.json"
+	worldChapterTemplateCategory = "ShareCfg/world_chapter_template.json"
 	worldTaskDataCategory        = "ShareCfg/world_task_data.json"
 	worldTaskDataCategoryLC      = "sharecfgdata/world_task_data.json"
 	worldGamesetCategory         = "ShareCfg/gameset.json"
@@ -269,12 +270,16 @@ func WorldMapRequest(buffer *[]byte, client *connection.Client) (int, int, error
 	} else {
 		response.IsReset = proto.Uint32(0)
 	}
+	template, err := loadWorldChapterTemplate(templateID)
+	if err != nil {
+		return 0, 33107, err
+	}
 	response.Map = &protobuf.MAPINFO{
 		Id:        &protobuf.WORLDMAPID{RandomId: proto.Uint32(payload.GetId()), TemplateId: proto.Uint32(templateID)},
 		CellList:  []*protobuf.CHAPTERCELLINFO_P33{},
-		StateFlag: []uint32{},
-		LandList:  []*protobuf.LANDINFO{},
-		PosList:   []*protobuf.WORLDPOSINFO{},
+		StateFlag: buildWorldStateFlag(),
+		LandList:  buildWorldLandList(template),
+		PosList:   buildWorldPosList(template),
 	}
 	if changed || !templateKnown {
 		if err := orm.SaveWorldRuntime(runtime); err != nil {
@@ -944,4 +949,105 @@ func decodeJSONValue(raw json.RawMessage) (any, error) {
 		return nil, err
 	}
 	return value, nil
+}
+
+// worldMapFlag* 是 SC_33107 的 state_flag 取值。客户端把它当"标志位序号集合"用
+// （worldproxy.lua:320 NetUpdateMap）：
+//
+//	slot4[flag] = true; UpdateClearFlag(slot4[1]); UpdateVisionFlag(slot4[2] or ...);
+//	NetUpdateMapDiscoveredCells(slot5.id, slot4[3], cell_list)
+//
+// 即 1=已通关、2=有视野、3=本包带了可用的格子数据。
+const worldMapFlagHasCells = 3
+
+// worldChapterTemplateConfig 只取重建地图需要的两个数组：
+//
+//	grids   = [[x, y, walkable], ...]
+//	terrain = [[x, y, type, distance], ...]
+type worldChapterTemplateConfig struct {
+	ID      uint32  `json:"id"`
+	Grids   [][]any `json:"grids"`
+	Terrain [][]any `json:"terrain"`
+}
+
+func loadWorldChapterTemplate(templateID uint32) (*worldChapterTemplateConfig, error) {
+	if templateID == 0 {
+		return nil, nil
+	}
+	entry, err := orm.GetConfigEntry(worldChapterTemplateCategory, strconv.FormatUint(uint64(templateID), 10))
+	if err != nil {
+		if errors.Is(err, db.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var cfg worldChapterTemplateConfig
+	if err := json.Unmarshal(entry.Data, &cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// buildWorldStateFlag 只置 flag 3（附带格子数据）。
+// 通关(1)与视野(2)状态还没有落库，所以不宣称 —— 宁可让客户端认为这图没打过。
+// 官方那次抓包（captures/req33106_rep33107_00.txt）也是 [3]。
+func buildWorldStateFlag() []uint32 {
+	return []uint32{worldMapFlagHasCells}
+}
+
+// buildWorldLandList 把 terrain 的 [x, y, type, distance] 逐条转成 LANDINFO。
+//
+// dir 恒为 (1, 1)：官方那份抓包里 45 条 land 的 dir 全是 (1,1)，配置里也没有方向
+// 字段，所以它是常量而不是算出来的值。
+func buildWorldLandList(template *worldChapterTemplateConfig) []*protobuf.LANDINFO {
+	if template == nil {
+		return []*protobuf.LANDINFO{}
+	}
+	out := make([]*protobuf.LANDINFO, 0, len(template.Terrain))
+	for _, row := range template.Terrain {
+		if len(row) < 4 {
+			continue
+		}
+		out = append(out, &protobuf.LANDINFO{
+			Pos:      buildWorldGridPos(row[0], row[1]),
+			Type:     proto.Uint32(parseAnyUint(row[2])),
+			Dir:      &protobuf.CHAPTERCELLPOS_P33{Row: proto.Uint32(1), Column: proto.Uint32(1)},
+			Distance: proto.Uint32(parseAnyUint(row[3])),
+		})
+	}
+	return out
+}
+
+// buildWorldPosList 把 grids 里 walkable 的格子转成 WORLDPOSINFO。
+// 官方那次 118 条，正好等于模板 400000 里 walkable=true 的格子数。
+func buildWorldPosList(template *worldChapterTemplateConfig) []*protobuf.WORLDPOSINFO {
+	if template == nil {
+		return []*protobuf.WORLDPOSINFO{}
+	}
+	out := make([]*protobuf.WORLDPOSINFO, 0, len(template.Grids))
+	for _, row := range template.Grids {
+		if len(row) < 3 {
+			continue
+		}
+		walkable, ok := row[2].(bool)
+		if !ok || !walkable {
+			continue
+		}
+		out = append(out, &protobuf.WORLDPOSINFO{
+			Pos:      buildWorldGridPos(row[0], row[1]),
+			ItemList: []*protobuf.WORLDITEMINFO{},
+		})
+	}
+	return out
+}
+
+// buildWorldGridPos 把 grids/terrain 的坐标对转成 CHAPTERCELLPOS_P33。
+//
+// 配置里是 (x, y)，协议里叫 row/column。对照官方抓包：terrain [0,1] 对应
+// land pos {row:0, column:1}，terrain [0,2] 对应 {row:0, column:2} —— 即 row=x、column=y。
+func buildWorldGridPos(x any, y any) *protobuf.CHAPTERCELLPOS_P33 {
+	return &protobuf.CHAPTERCELLPOS_P33{
+		Row:    proto.Uint32(parseAnyUint(x)),
+		Column: proto.Uint32(parseAnyUint(y)),
+	}
 }
