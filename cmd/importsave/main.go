@@ -327,7 +327,7 @@ func importItems(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte, 
 
 func importShips(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte, keep bool) (string, error) {
 	ships := map[uint32]*protobuf.SHIPINFO{}
-	equips, skills, strengths, transforms, shadows := 0, 0, 0, 0, 0
+	equips, strengths, transforms, shadows := 0, 0, 0, 0
 	for _, p := range payloads {
 		var msg protobuf.SC_12001
 		if err := proto.Unmarshal(p, &msg); err != nil {
@@ -341,7 +341,6 @@ func importShips(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte, 
 		for _, s := range msg.GetShiplist() {
 			ships[s.GetId()] = s
 			equips += len(s.GetEquipInfoList())
-			skills += len(s.GetSkillIdList())
 			strengths += len(s.GetStrengthList())
 			transforms += len(s.GetTransformList())
 			shadows += len(s.GetSkinShadowList())
@@ -411,18 +410,18 @@ WHERE o.id = k.id AND o.owner_id = $1`, cid); err != nil {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%d 条船（%s；未导入：技能 %d / 皮肤影 %d）",
-		len(ships), children, skills, shadows), nil
+	return fmt.Sprintf("%d 条船（%s；皮肤影 %d 未导入）",
+		len(ships), children, shadows), nil
 }
 
-// importShipChildren writes the three tables that hang off owned_ships.id from the
+// importShipChildren writes the four per-ship tables that hang off owned_ships.id from the
 // nested SC_12001 / SC_12010 fields.
 //
 // Before this, the nested data was only *counted* — the dry run printed
 // "未导入：装备位 6055 / 技能 2376 / 强化 1450 / 改造 339" and the values were dropped, which
 // is why the client showed ships with no equipment and nothing to strengthen. Nothing else
 // has to change to make them visible: orm/players_sqlc.go already attaches
-// Equipments/Strengths/Transforms to the ship when the commander is loaded, and
+// Equipments/Skills/Strengths/Transforms to the ship when the commander is loaded, and
 // orm/adapters.go already emits them in SHIPINFO. The tables were simply empty.
 //
 // Empty slots are skipped. The server's own builder (buildEquipInfoList) always emits
@@ -437,6 +436,10 @@ func importShipChildren(ctx context.Context, tx pgx.Tx, cid uint64, ships map[ui
 				return "", err
 			}
 		}
+		// commander_ship_skills keys on commander_id, not owner_id.
+		if _, err := tx.Exec(ctx, "DELETE FROM commander_ship_skills WHERE commander_id = $1", cid); err != nil {
+			return "", err
+		}
 	}
 
 	ids := make([]uint32, 0, len(ships))
@@ -445,7 +448,7 @@ func importShipChildren(ctx context.Context, tx pgx.Tx, cid uint64, ships map[ui
 	}
 	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
 
-	var equipments, strengths, transforms int
+	var equipments, skills, strengths, transforms int
 	skippedSlots := 0
 	for _, id := range ids {
 		ship := ships[id]
@@ -492,9 +495,25 @@ DO UPDATE SET level = EXCLUDED.level`,
 			}
 			transforms++
 		}
+		// Skill slots: SHIPINFO.skill_id_list (field 10). The client renders a ship's skills from it,
+		// and with no rows every configured slot showed up locked and "可习得".
+		for pos, s := range ship.GetSkillIdList() {
+			if s.GetSkillId() == 0 {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+INSERT INTO commander_ship_skills (commander_id, ship_id, skill_pos, skill_id, level, exp)
+VALUES ($1,$2,$3,$4,$5,$6)
+ON CONFLICT (commander_id, ship_id, skill_pos)
+DO UPDATE SET skill_id = EXCLUDED.skill_id, level = EXCLUDED.level, exp = EXCLUDED.exp`,
+				cid, id, uint32(pos+1), s.GetSkillId(), s.GetSkillLv(), s.GetSkillExp()); err != nil {
+				return "", fmt.Errorf("ship %d skill %d: %w", id, s.GetSkillId(), err)
+			}
+			skills++
+		}
 	}
-	return fmt.Sprintf("装备槽 %d / 强化 %d / 改造 %d（跳过空槽 %d）",
-		equipments, strengths, transforms, skippedSlots), nil
+	return fmt.Sprintf("装备槽 %d / 技能 %d / 强化 %d / 改造 %d（跳过空槽 %d）",
+		equipments, skills, strengths, transforms, skippedSlots), nil
 }
 
 // ---------------------------------------------------------------- equips (SC_14001)

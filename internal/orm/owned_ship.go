@@ -48,6 +48,9 @@ type OwnedShip struct {
 	Equipments []OwnedShipEquipment `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Transforms []OwnedShipTransform `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	Strengths  []OwnedShipStrength  `gorm:"foreignKey:ShipID;references:ID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	// Hand-loaded in players_sqlc.go. No gorm relation on purpose: commander_ship_skills keys on
+	// (commander_id, ship_id, skill_pos) and AutoMigrate should leave that table alone.
+	Skills []CommanderShipSkill
 }
 
 var (

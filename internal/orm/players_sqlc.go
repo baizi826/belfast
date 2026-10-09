@@ -176,6 +176,36 @@ WHERE owner_id = $1
 	}
 	transformRows.Close()
 
+	// commander_ship_skills is what makes SHIPINFO.skill_id_list non-empty. With it missing the
+	// client still draws the ship's configured skill slots, but as locked "可习得" placeholders -
+	// the whole skill panel is unreadable and nothing can be levelled (2026-10-10, 绫波).
+	skillRows, err := db.DefaultStore.Pool.Query(ctx, `
+SELECT commander_id, ship_id, skill_pos, skill_id, level, exp
+FROM commander_ship_skills
+WHERE commander_id = $1
+ORDER BY ship_id, skill_pos
+`, int64(id))
+	if err != nil {
+		return Commander{}, err
+	}
+	for skillRows.Next() {
+		var skill CommanderShipSkill
+		if err := skillRows.Scan(&skill.CommanderID, &skill.ShipID, &skill.SkillPos, &skill.SkillID, &skill.Level, &skill.Exp); err != nil {
+			skillRows.Close()
+			return Commander{}, err
+		}
+		idx, ok := shipIndexByID[skill.ShipID]
+		if !ok {
+			continue
+		}
+		commander.Ships[idx].Skills = append(commander.Ships[idx].Skills, skill)
+	}
+	if err := skillRows.Err(); err != nil {
+		skillRows.Close()
+		return Commander{}, err
+	}
+	skillRows.Close()
+
 	items, err := db.DefaultStore.Queries.ListCommanderItemsWithItemByCommanderID(ctx, int64(id))
 	if err != nil {
 		return Commander{}, err

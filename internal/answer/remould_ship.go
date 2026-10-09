@@ -163,6 +163,15 @@ func remouldPrerequisitesMet(transforms []orm.OwnedShipTransform, prereqIDs []ui
 }
 
 func findRemouldTarget(options [][]uint32, current uint32) (uint32, bool) {
+	// An empty `ship_id` does not mean "no ship matches": it means the project is not tied to
+	// specific hulls. 1209 of ShareCfg/transform_data_template.json's 1253 rows are `{}` - 15501
+	// (舰体改良I, level_limit 1 / star_limit 2 / max_level 1) is one of the generic hull-improvement
+	// projects every ship can take. Such a project keeps the ship's own template, so `current` is
+	// both the input and the output. Returning false here made every generic 改造 answer result=1,
+	// which the client shows as "突破舰船失败：无效操作".
+	if len(options) == 0 {
+		return current, true
+	}
 	for _, entry := range options {
 		if len(entry) < 2 {
 			continue

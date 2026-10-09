@@ -51,8 +51,7 @@ func toProtoOwnedShipWithRepairs(ship OwnedShip, randomFlags []uint32, shadowSki
 		Energy:               proto.Uint32(ship.Energy),
 		State:                proto.Uint32(ship.State),
 		IsLocked:            proto.Uint32(boolToUint32(ship.IsLocked)),
-		TransformList:       transformInfo,
-		Intimacy:            proto.Uint32(ship.Intimacy),
+		TransformList:       transformInfo,			SkillIdList:         buildSkillInfoList(ship.Skills),		Intimacy:            proto.Uint32(ship.Intimacy),
 		Proficiency:         proto.Uint32(boolToUint32(ship.Proficiency)),
 		StrengthList:        strengthInfo,
 		CreateTime:          proto.Uint32(uint32(ship.CreateTime.Unix())),
@@ -93,6 +92,29 @@ func buildSkinShadowList(entries []OwnedShipShadowSkin) []*protobuf.KVDATA {
 	result := make([]*protobuf.KVDATA, len(sorted))
 	for i, entry := range sorted {
 		result[i] = &protobuf.KVDATA{Key: proto.Uint32(entry.ShadowID), Value: proto.Uint32(entry.SkinID)}
+	}
+	return result
+}
+
+// buildSkillInfoList renders SHIPINFO.skill_id_list (field 10).
+//
+// The client draws a ship's skills straight from this list (SHIPSKILL: skill_id / skill_lv /
+// skill_exp) and falls back to the ship's configured slots when it is empty - which is what made
+// every skill on every ship show as a locked "可习得" placeholder with no way to upgrade it.
+func buildSkillInfoList(skills []CommanderShipSkill) []*protobuf.SHIPSKILL {
+	if len(skills) == 0 {
+		return nil
+	}
+	sorted := make([]CommanderShipSkill, len(skills))
+	copy(sorted, skills)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].SkillPos < sorted[j].SkillPos })
+	result := make([]*protobuf.SHIPSKILL, len(sorted))
+	for i, entry := range sorted {
+		result[i] = &protobuf.SHIPSKILL{
+			SkillId:  proto.Uint32(entry.SkillID),
+			SkillLv:  proto.Uint32(entry.Level),
+			SkillExp: proto.Uint32(entry.Exp),
+		}
 	}
 	return result
 }
