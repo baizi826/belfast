@@ -26,6 +26,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -199,6 +200,26 @@ func importShips(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte, 
 			shadows += len(s.GetSkinShadowList())
 		}
 	}
+	// owned_ships has 28 columns and this importer writes 18 of them. The delete+insert
+	// below resets everything else to its default, and one of those columns is
+	// `is_secretary`: a re-import silently wiped the secretary assignment, PlayerInfo then
+	// found no secretary and returned *without sending SC_11003*, and the client sat on the
+	// loading screen forever. Stash the columns this importer does not own so the import
+	// cannot destroy state it never imported.
+	//
+	// `deleted_at` is deliberately not preserved - a ship absent from the capture must come
+	// back listed, and the capture is the authority on which ships the account owns.
+	preserved := []string{
+		"surplus_exp", "blueprint_flag",
+		"state_info1", "state_info2", "state_info3", "state_info4",
+		"is_secretary", "secretary_position", "secretary_phantom_id",
+	}
+	if _, err := tx.Exec(ctx, `
+CREATE TEMP TABLE imported_ship_keep ON COMMIT DROP AS
+SELECT id, `+strings.Join(preserved, ", ")+` FROM owned_ships WHERE owner_id = $1`, cid); err != nil {
+		return "", err
+	}
+
 	if !keep {
 		if _, err := tx.Exec(ctx, `DELETE FROM owned_ships WHERE owner_id = $1`, cid); err != nil {
 			return "", err
@@ -227,8 +248,106 @@ VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
 		}
 	}
 	// 顺带把 EquipList 里那种「无实例」的装备也记一笔（EQUIPSKIN_INFO 只有模板 id + 皮肤）
-	return fmt.Sprintf("%d 条船（未导入：装备位 %d / 技能 %d / 强化 %d / 改造 %d / 皮肤影 %d）",
-		len(ships), equips, skills, strengths, transforms, shadows), nil
+	// Put back the columns the importer does not own (see the stash above).
+	sets := make([]string, len(preserved))
+	for i, col := range preserved {
+		sets[i] = col + " = k." + col
+	}
+	if _, err := tx.Exec(ctx, `
+UPDATE owned_ships AS o SET `+strings.Join(sets, ", ")+`
+FROM imported_ship_keep AS k
+WHERE o.id = k.id AND o.owner_id = $1`, cid); err != nil {
+		return "", err
+	}
+
+	children, err := importShipChildren(ctx, tx, cid, ships, keep)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%d 条船（%s；未导入：技能 %d / 皮肤影 %d）",
+		len(ships), children, skills, shadows), nil
+}
+
+// importShipChildren writes the three tables that hang off owned_ships.id from the
+// nested SC_12001 / SC_12010 fields.
+//
+// Before this, the nested data was only *counted* — the dry run printed
+// "未导入：装备位 6055 / 技能 2376 / 强化 1450 / 改造 339" and the values were dropped, which
+// is why the client showed ships with no equipment and nothing to strengthen. Nothing else
+// has to change to make them visible: orm/players_sqlc.go already attaches
+// Equipments/Strengths/Transforms to the ship when the commander is loaded, and
+// orm/adapters.go already emits them in SHIPINFO. The tables were simply empty.
+//
+// Empty slots are skipped. The server's own builder (buildEquipInfoList) always emits
+// slotCount entries, filling unused ones with zeros, so a row with equip_id = 0 carries no
+// information and would only inflate owned_equipments' counts.
+func importShipChildren(ctx context.Context, tx pgx.Tx, cid uint64, ships map[uint32]*protobuf.SHIPINFO, keep bool) (string, error) {
+	if !keep {
+		// owned_ships has just been deleted and these FKs are ON DELETE CASCADE, so they
+		// are already empty; the explicit DELETEs keep this right if that ever changes.
+		for _, table := range []string{"owned_ship_equipments", "owned_ship_strengths", "owned_ship_transforms"} {
+			if _, err := tx.Exec(ctx, "DELETE FROM "+table+" WHERE owner_id = $1", cid); err != nil {
+				return "", err
+			}
+		}
+	}
+
+	ids := make([]uint32, 0, len(ships))
+	for id := range ships {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+
+	var equipments, strengths, transforms int
+	skippedSlots := 0
+	for _, id := range ids {
+		ship := ships[id]
+		for i, e := range ship.GetEquipInfoList() {
+			if e.GetId() == 0 && e.GetSkinId() == 0 {
+				skippedSlots++
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+INSERT INTO owned_ship_equipments (owner_id, ship_id, pos, equip_id, skin_id)
+VALUES ($1,$2,$3,$4,$5)
+ON CONFLICT (owner_id, ship_id, pos)
+DO UPDATE SET equip_id = EXCLUDED.equip_id, skin_id = EXCLUDED.skin_id`,
+				cid, id, uint32(i+1), e.GetId(), e.GetSkinId()); err != nil {
+				return "", fmt.Errorf("ship %d equipment pos %d: %w", id, i+1, err)
+			}
+			equipments++
+		}
+		for _, s := range ship.GetStrengthList() {
+			if s.GetId() == 0 {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+INSERT INTO owned_ship_strengths (owner_id, ship_id, strength_id, exp)
+VALUES ($1,$2,$3,$4)
+ON CONFLICT (owner_id, ship_id, strength_id)
+DO UPDATE SET exp = EXCLUDED.exp`,
+				cid, id, s.GetId(), s.GetExp()); err != nil {
+				return "", fmt.Errorf("ship %d strength %d: %w", id, s.GetId(), err)
+			}
+			strengths++
+		}
+		for _, t := range ship.GetTransformList() {
+			if t.GetId() == 0 {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+INSERT INTO owned_ship_transforms (owner_id, ship_id, transform_id, level)
+VALUES ($1,$2,$3,$4)
+ON CONFLICT (owner_id, ship_id, transform_id)
+DO UPDATE SET level = EXCLUDED.level`,
+				cid, id, t.GetId(), t.GetLevel()); err != nil {
+				return "", fmt.Errorf("ship %d transform %d: %w", id, t.GetId(), err)
+			}
+			transforms++
+		}
+	}
+	return fmt.Sprintf("装备槽 %d / 强化 %d / 改造 %d（跳过空槽 %d）",
+		equipments, strengths, transforms, skippedSlots), nil
 }
 
 // ---------------------------------------------------------------- equips (SC_14001)
