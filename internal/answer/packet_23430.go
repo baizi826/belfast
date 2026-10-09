@@ -1,60 +1,68 @@
 package answer
 
 import (
-	"fmt"
-	"os"
-	"sync"
-
 	"github.com/ggmolly/belfast/internal/connection"
-	"github.com/ggmolly/belfast/internal/logger"
+	"github.com/ggmolly/belfast/internal/protobuf"
+	"google.golang.org/protobuf/proto"
 )
 
-// CS_23430 has no protobuf definition anywhere in this repository - nothing in the
-// 23000-23999 range is registered - so the reply is replayed byte for byte from a
-// captured official SC_23431. The payload can only come from a real client session
-// against an official gateway, which is why it lives in a data file and not in source.
+// goldResourceID is the owned_resources id for gold (see orm.Commander.HasEnoughGold).
+const goldResourceID = uint32(1)
+
+// HandleLegacy23430 answers CS_23430 (gold-supply store state) with a constructed
+// SC_23431.
 //
-// ponytail: static replay, not an implementation. Ceiling: the captured message
-// carries per-account values frozen at capture time. Upgrade path: recover the
-// SC_23431 message name and field semantics from the client, define it in
-// internal/protobuf, and build the reply from orm instead of replaying.
-const legacy23430ReplyPathEnv = "BELFAST_SC23431_FILE"
-
-var (
-	legacy23430Once  sync.Once
-	legacy23430Bytes []byte
-)
-
-// loadLegacy23430Reply reads the captured SC_23431 payload once. An absent or
-// unreadable file is not fatal: the reply degrades to an empty SC_23431, which the
-// client parses as an all-defaults message.
-func loadLegacy23430Reply() []byte {
-	legacy23430Once.Do(func() {
-		path := os.Getenv(legacy23430ReplyPathEnv)
-		if path == "" {
-			logger.LogEvent("Handler", "23430", fmt.Sprintf("%s is not set, replying with an empty SC_23431", legacy23430ReplyPathEnv), logger.LOG_LEVEL_WARN)
-			return
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			logger.LogEvent("Handler", "23430", fmt.Sprintf("cannot read %s: %v, replying with an empty SC_23431", path, err), logger.LOG_LEVEL_ERROR)
-			return
-		}
-		legacy23430Bytes = data
-		logger.LogEvent("Handler", "23430", fmt.Sprintf("replaying %d bytes of captured SC_23431 from %s", len(data), path), logger.LOG_LEVEL_INFO)
-	})
-	return legacy23430Bytes
-}
-
-// HandleLegacy23430 answers CS_23430 with the captured SC_23431 payload. The client
-// retries this command every few seconds while it goes unanswered, which blocks the
-// rest of the login handshake.
+// History: this used to replay a captured official SC_23431 byte-for-byte, because
+// nothing in the 23000-23999 range had a protobuf definition. That had two problems:
+// the reply carried whatever that particular account had at capture time, so it was
+// wrong for every other player; and the deployment could not come up correctly without
+// a packet trace, which is not something a deliverable may depend on.
+//
+// SC_23431.proto now exists, so the reply is built rather than replayed: `gold` comes
+// from the commander's own resources, the rest are explicit zeros.
+//
+// The captured message (that account, at capture time) looked like:
+//
+//	gold=7045298 buy_num=15 max_profit=1544354 acc_profit=133835
+//	item_list=[78 ids in 7..120] acc_buy_price>0 pre_buy_state=1 pre_timestamp>0
+//	match_time=0 is_forbidden=0 game_num=53 inactive_*=0 back_forbidden=0
+//	acc_item_price>0 get_relief_num=1
+//
+// ponytail: item_list is left empty. Those are the supply store's goods, i.e.
+// configuration, and the 23xxx range has no config table we have located yet.
+// Ceiling: the store page lists no goods until it is filled in. Upgrade path: find the
+// table behind the client's supply-store UI and populate item_list from it.
+//
+// Every field is `required` in proto2, so all of them are set explicitly - omitting
+// one makes proto.Marshal fail and the client never gets its answer.
 func HandleLegacy23430(buffer *[]byte, client *connection.Client) (int, int, error) {
-	out := make([]byte, len(loadLegacy23430Reply()))
-	copy(out, loadLegacy23430Reply())
-	connection.InjectPacketHeader(23431, &out, client.PacketIndex)
-	if _, err := client.Buffer.Write(out); err != nil {
+	var request protobuf.CS_23430
+	if err := proto.Unmarshal(*buffer, &request); err != nil {
 		return 0, 23431, err
 	}
-	return len(out), 23431, nil
+
+	var gold uint32
+	if client.Commander != nil {
+		gold = client.Commander.GetResourceCount(goldResourceID)
+	}
+
+	response := protobuf.SC_23431{
+		Gold:          proto.Uint32(gold),
+		BuyNum:        proto.Uint32(0),
+		MaxProfit:     proto.Uint32(0),
+		AccProfit:     proto.Int32(0),
+		ItemList:      []uint32{},
+		AccBuyPrice:   proto.Uint32(0),
+		PreBuyState:   proto.Uint32(0),
+		PreTimestamp:  proto.Uint32(0),
+		MatchTime:     proto.Uint32(0),
+		IsForbidden:   proto.Uint32(0),
+		GameNum:       proto.Uint32(0),
+		InactiveNum:   proto.Uint32(0),
+		InactiveState: proto.Uint32(0),
+		BackForbidden: proto.Uint32(0),
+		AccItemPrice:  proto.Uint32(0),
+		GetReliefNum:  proto.Uint32(0),
+	}
+	return client.SendMessage(23431, &response)
 }
