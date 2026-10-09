@@ -64,6 +64,12 @@ func StartTechnologyResearch(buffer *[]byte, client *connection.Client) (int, in
 		if err != nil {
 			return nil
 		}
+		// Gated projects must never be startable: there is no campaign task to satisfy the
+		// condition, and once finish_time passes the client's finishCondition dereferences a
+		// nil TaskProxy VO and the main menu fails to load. See BuildTechnologyRefreshPools.
+		if template.Condition != 0 {
+			return nil
+		}
 		if !canConsumeTechnologyCost(client.Commander, template.Consume) {
 			return nil
 		}

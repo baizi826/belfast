@@ -278,6 +278,17 @@ func BuildTechnologyRefreshPools(seed uint32) ([]TechnologyRefreshPoolState, err
 		if template.ID == 0 || template.Type == 0 {
 			continue
 		}
+		// A non-zero `condition` is a task_data_template id: the project is gated behind a
+		// campaign task. The client's Technology:finishCondition is
+		//     getConfig("condition") == 0 or getProxy(TaskProxy):getTaskVO(cond):isFinish()
+		// and TechnologyProxy:updateTechnologys builds the VO without `queue`, so isQueue is
+		// nil and the `or` right-hand side runs. TaskProxy:getTaskVO returns nil for a task
+		// this account never accepted, so `:isFinish()` indexes nil and the main-menu red-dot
+		// registration dies (PlayerProxy:IsShowCommssionTip -> Technology:isCompleted ->
+		// finishCondition). Official only offers ungated projects in the refresh pools.
+		if template.Condition != 0 {
+			continue
+		}
 		byPool[template.Type] = append(byPool[template.Type], TechnologyProjectState{TechID: template.ID, FinishTime: 0})
 	}
 	poolIDs := make([]uint32, 0, len(byPool))
