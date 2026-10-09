@@ -68,7 +68,7 @@ Copy-Item (& $Newest).FullName state-after.sql -Force
 Compare-Object (Get-Content state-before.sql) (Get-Content state-after.sql)
 ```
 
-逐列看某几列的值：`python E:\Agent工作区\apkwork\belfast-run\archive-peek.py <archive.sql> <table> [col ...]`
+逐列看某几列的值：`python tools\archive-peek.py <archive.sql> <table> [col ...]`
 
 **为什么有这条**（2026-10-09 实测的教训，不是假想）：
 
