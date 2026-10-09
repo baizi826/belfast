@@ -90,8 +90,13 @@ func PlayerInfo(buffer *[]byte, client *connection.Client) (int, int, error) {
 		}
 	}
 	if len(response.Character) == 0 {
-		logger.LogEvent("Server", "PlayerInfo", "No secretaries found", logger.LOG_LEVEL_ERROR)
-		return 0, 11003, nil
+		// Do NOT return here. Returning without calling SendMessage means SC_11003 is never
+		// sent, and the client waits on the loading screen forever with nothing in its own
+		// log to explain why. A missing secretary is a data problem (an importer that reset
+		// owned_ships.is_secretary used to cause exactly this); the answer is a loud log plus
+		// a well-formed packet, not silence. Same rule as the gateway's account lookup.
+		logger.LogEvent("Server", "PlayerInfo",
+			"No secretaries found - sending SC_11003 with an empty character list", logger.LOG_LEVEL_ERROR)
 	}
 
 	response.ResourceList = buildResourceSnapshot(client.Commander.OwnedResources)
