@@ -87,16 +87,20 @@ WHERE commander_id = $1
 	stats.FurnitureNumber = uint32(furnitureCount)
 
 	var shipNumTotal, shipNum120, shipNum125, marryNumber, love200Num, collectNum int64
+	// collect_num counts distinct group_types, not `ship_id / 10`: a refit shares its
+	// prototype's group, so /10 double-counts it as a separate collection entry.
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `
 SELECT COUNT(*) AS ship_num_total,
 	COUNT(*) FILTER (WHERE max_level >= 120) AS ship_num_120,
 	COUNT(*) FILTER (WHERE max_level >= 125) AS ship_num_125,
 	COUNT(*) FILTER (WHERE propose = TRUE) AS marry_number,
 	COUNT(*) FILTER (WHERE intimacy >= $2) AS love200_num,
-	COUNT(DISTINCT ship_id / 10) AS collect_num
+	COUNT(DISTINCT ships.group_type) AS collect_num
 FROM owned_ships
+INNER JOIN ships ON owned_ships.ship_id = ships.template_id
 WHERE owner_id = $1
   AND deleted_at IS NULL
+  AND ships.group_type IS NOT NULL
 `, int64(commanderID), int64(summaryLove200Threshold)).Scan(&shipNumTotal, &shipNum120, &shipNum125, &marryNumber, &love200Num, &collectNum); err != nil {
 		return nil, err
 	}
@@ -164,15 +168,20 @@ WHERE commander_id = $1
 	stats.SkinNum = uint32(skinNum)
 
 	var skinShipNum int64
+	// skins.ship_group lives in the same number space as group_type (verified against the
+	// client tables), so matching it against `ship_id / 10` silently dropped every skin
+	// belonging to a refit ship.
 	if err := db.DefaultStore.Pool.QueryRow(ctx, `
 SELECT COUNT(DISTINCT owned_ships.id)
 FROM owned_ships
-JOIN skins ON skins.ship_group = (owned_ships.ship_id / 10)
+INNER JOIN ships ON ships.template_id = owned_ships.ship_id
+JOIN skins ON skins.ship_group = ships.group_type
 JOIN owned_skins ON owned_skins.commander_id = owned_ships.owner_id
-	AND owned_skins.skin_id = skins.id
-	AND (owned_skins.expires_at IS NULL OR owned_skins.expires_at > CURRENT_TIMESTAMP)
+      AND owned_skins.skin_id = skins.id
+      AND (owned_skins.expires_at IS NULL OR owned_skins.expires_at > CURRENT_TIMESTAMP)
 WHERE owned_ships.owner_id = $1
   AND owned_ships.deleted_at IS NULL
+  AND ships.group_type IS NOT NULL
 `, int64(commanderID)).Scan(&skinShipNum); err != nil {
 		return nil, err
 	}

@@ -161,14 +161,17 @@ func ClaimCollectionAward(buffer *[]byte, client *connection.Client) (int, int, 
 }
 
 func storeupStarCount(commanderID uint32, groups []uint32) (uint32, error) {
+	// Keyed by group_type, matching SC_17001 -- store-up awards compare against the same
+	// group ids the client knows. `ship_id / 10` disagreed for every refit ship.
 	rows, err := db.DefaultStore.Pool.Query(context.Background(), `
 SELECT
-	owned_ships.ship_id / 10 AS group_id,
+	ships.group_type AS group_id,
 	MAX(ships.star) AS max_star
 FROM owned_ships
 INNER JOIN ships ON owned_ships.ship_id = ships.template_id
 WHERE owner_id = $1
-GROUP BY group_id
+  AND ships.group_type IS NOT NULL
+GROUP BY ships.group_type
 `, int64(commanderID))
 	if err != nil {
 		return 0, err

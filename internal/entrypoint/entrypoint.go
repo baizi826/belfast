@@ -102,6 +102,13 @@ func Run(opts Options) {
 		logger.LogEvent("Reseed", "Forced", "Forcing reseed of the database...", logger.LOG_LEVEL_INFO)
 		misc.UpdateAllData(region.Current())
 	}
+	// ships.group_type is not part of the upstream data (ship_data_statistics.json has no
+	// such field), so it is filled from the mirrored Lua mapping. Doing it on every boot
+	// means a reseed self-heals rather than leaving the column NULL and silently dropping
+	// ships from SC_17001.
+	if err := misc.BackfillShipGroupTypes(context.Background()); err != nil {
+		logger.LogEvent("DB", "ShipGroupTypes", err.Error(), logger.LOG_LEVEL_ERROR)
+	}
 	server := connection.NewServer(loadedConfig.Belfast.BindAddress, loadedConfig.Belfast.Port, packets.Dispatch)
 	server.SetMaintenance(loadedConfig.Belfast.Maintenance)
 	if loadedConfig.Belfast.RequirePrivateClients != nil {

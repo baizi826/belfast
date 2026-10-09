@@ -21,6 +21,11 @@ type shipCollectionStat struct {
 }
 
 func listCollectionShipStats(commanderID uint32) ([]shipCollectionStat, error) {
+	// The collection is keyed by group_type, NOT by `ship_id / 10`. One group_type covers
+	// several template ids (a refit shares its prototype's group), and the client resolves
+	// every entry through pg.ship_data_group[id] -- an unknown id aborts the login-time
+	// painting check. ships.group_type is filled from the mirrored Lua mapping; rows
+	// without one are skipped rather than emitted as a group the client cannot look up.
 	resultRows, err := db.DefaultStore.Pool.Query(context.Background(), `
 SELECT
 stats.group_id,
@@ -32,7 +37,7 @@ stats.marry_flag,
 (SELECT COUNT(*) FROM likes WHERE group_id = stats.group_id) AS heart_count
 FROM (
 	SELECT
-		owned_ships.ship_id / 10 AS group_id,
+		ships.group_type AS group_id,
 		MAX(ships.star) AS max_star,
 		MAX(intimacy) AS max_intimacy,
 		MAX(level) AS max_level,
@@ -40,7 +45,8 @@ FROM (
 	FROM owned_ships
 	INNER JOIN ships ON owned_ships.ship_id = ships.template_id
 	WHERE owner_id = $2
-	GROUP BY owned_ships.ship_id / 10
+	  AND ships.group_type IS NOT NULL
+	GROUP BY ships.group_type
 ) AS stats
 `, int64(commanderID), int64(commanderID))
 	if err != nil {
@@ -66,7 +72,7 @@ func getCollectionShipStat(commanderID uint32, groupID uint32) (*shipCollectionS
 	row := shipCollectionStat{}
 	err := db.DefaultStore.Pool.QueryRow(context.Background(), `
 SELECT
-	owned_ships.ship_id / 10 AS group_id,
+	ships.group_type AS group_id,
 	MAX(ships.star) AS max_star,
 	MAX(intimacy) AS max_intimacy,
 	MAX(level) AS max_level,
@@ -75,8 +81,8 @@ SELECT
 	(SELECT COUNT(*) FROM likes WHERE group_id = $2) AS heart_count
 FROM owned_ships
 INNER JOIN ships ON owned_ships.ship_id = ships.template_id
-WHERE owner_id = $1 AND owned_ships.ship_id / 10 = $2
-GROUP BY group_id
+WHERE owner_id = $1 AND ships.group_type = $2
+GROUP BY ships.group_type
 `, int64(commanderID), int64(groupID)).Scan(
 		&row.GroupID,
 		&row.MaxStar,
