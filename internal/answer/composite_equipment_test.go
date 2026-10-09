@@ -197,7 +197,7 @@ func TestCompositeEquipment_FailsWhenBagCapacityExceeded(t *testing.T) {
 	seedCompositeCommanderGold(t, client.Commander.CommanderID, 200)
 	seedCompositeCommanderItem(t, client.Commander.CommanderID, 3001, 10)
 	seedConfigEntry(t, composeDataTemplateCategory, "9001", `{"id":9001,"equip_id":2001,"material_id":3001,"material_num":3,"gold_num":10}`)
-	execAnswerTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(9999), int64(equipBagMax))
+	execAnswerTestSQLT(t, "INSERT INTO owned_equipments (commander_id, equipment_id, count) VALUES ($1, $2, $3)", int64(client.Commander.CommanderID), int64(9999), int64(orm.DefaultEquipBagMax))
 	if err := client.Commander.Load(); err != nil {
 		t.Fatalf("reload commander: %v", err)
 	}

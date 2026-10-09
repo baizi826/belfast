@@ -112,7 +112,12 @@ func computeRevertEquipmentRefunds(equipID uint32) (uint32, map[uint32]uint32, u
 }
 
 func loadEquipmentConfig(equipID uint32) (*orm.Equipment, error) {
-	entry, err := orm.GetConfigEntry("sharecfgdata/equip_data_statistics.json", fmt.Sprintf("%d", equipID))
+	// equip_data_TEMPLATE, not equip_data_statistics: `next`, `trans_use_gold` and
+	// `trans_use_item` only exist in the template. Reading the statistics row left Next at 0,
+	// so the upgrade walk bailed out on its first step and every strengthen (14002/14004) and
+	// revert answered with a generic failure. orm.Equipment's json tags match the template
+	// verbatim, including the game data's own `destory_*` spelling.
+	entry, err := orm.GetConfigEntry("sharecfgdata/equip_data_template.json", fmt.Sprintf("%d", equipID))
 	if err != nil {
 		return nil, err
 	}

@@ -51,6 +51,19 @@ func loadCommanderWithDetailsSQLC(id uint32) (Commander, error) {
 		RandomFlagShipEnabled:   row.RandomFlagShipEnabled,
 	}
 
+	// Bag capacities live outside the sqlc-generated commander row (migration 0078). One extra
+	// round trip per commander load, alongside the ones already made for equipments, strengths
+	// and transforms, keeps the generated code untouched.
+	var shipBagMax, equipBagMax, commanderBagMax int64
+	if err := db.DefaultStore.Pool.QueryRow(ctx,
+		`SELECT ship_bag_max, equip_bag_max, commander_bag_max FROM commanders WHERE commander_id = $1`,
+		int64(id)).Scan(&shipBagMax, &equipBagMax, &commanderBagMax); err != nil {
+		return Commander{}, err
+	}
+	commander.ShipBagMax = uint32(shipBagMax)
+	commander.EquipBagMax = uint32(equipBagMax)
+	commander.CommanderBagMax = uint32(commanderBagMax)
+
 	ships, err := db.DefaultStore.Queries.ListOwnedShipsWithShipByOwnerID(ctx, int64(id))
 	if err != nil {
 		return Commander{}, err

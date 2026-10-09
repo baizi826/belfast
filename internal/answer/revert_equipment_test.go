@@ -50,7 +50,7 @@ func seedRevertEquipmentChain(t *testing.T) {
 
 func seedConfigEntryRevertEquipment(t *testing.T, equipID uint32, payload string) {
 	t.Helper()
-	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_statistics.json", fmt.Sprintf("%d", equipID), payload)
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_template.json", fmt.Sprintf("%d", equipID), payload)
 }
 
 func loadOwnedEquipmentCount(t *testing.T, commanderID uint32, equipmentID uint32) uint32 {

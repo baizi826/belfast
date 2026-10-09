@@ -89,7 +89,7 @@ func TransformEquipmentOnShip(buffer *[]byte, client *connection.Client) (int, i
 		return 0, 14013, err
 	}
 	if !allowed {
-		if client.Commander.EquipmentBagCount() >= equipBagMax {
+		if !client.Commander.EquipBagHasRoom(1) {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(14014, &response)
 		}

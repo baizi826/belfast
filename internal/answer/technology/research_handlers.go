@@ -480,12 +480,31 @@ func buildTechnologyRefreshSyncResponse(commanderID uint32) (*protobuf.SC_63000,
 	return &protobuf.SC_63000{
 		RefreshList: buildTechnologyRefreshList(state),
 		RefreshFlag: proto.Uint32(state.RefreshFlag),
-		Catchup: &protobuf.TECHNOLOGYCATCHUP{
-			Version: proto.Uint32(state.CatchupVersion),
-			Target:  proto.Uint32(state.CatchupTarget),
-		},
-		Queue: buildTechnologyQueueList(state),
+		Catchup:     buildTechnologyCatchup(),
+		Queue:       buildTechnologyQueueList(state),
 	}, nil
+}
+
+// buildTechnologyCatchup always reports "no catch-up in progress".
+//
+// The state table has no column for `pursuings`, and the client's updateTecCatchup ends with
+// getCurCatchNum():
+//
+//	if curCatchupTecID ~= 0 and curCatchupGroupID ~= 0 then
+//		return catchupData[curCatchupTecID]:getTargetNum(curCatchupGroupID)
+//	end
+//
+// catchupData is built from `pursuings`, so a non-zero version with an empty pursuings list is a
+// nil:getTargetNum() and throws. The exception aborts the 63000 handler *before*
+// updateTechnologyQueue runs, so TechnologyProxy.queue stays nil; the main menu's red-dot pass
+// then dies in getPlanningTechnologys (table.mergeArray(queue, ...)) from NewMainMellowTheme:OnLoaded
+// and the client sits on the login background forever with heartbeats still flowing and nothing
+// else in logcat (2026-10-10: importing the official snapshot's catchup v2/target 49902 did exactly
+// this). A catch-up version we cannot back with pursuings must therefore not be sent.
+//
+// When `pursuings` get a column, pass state.CatchupVersion/CatchupTarget again - together with them.
+func buildTechnologyCatchup() *protobuf.TECHNOLOGYCATCHUP {
+	return &protobuf.TECHNOLOGYCATCHUP{Version: proto.Uint32(0), Target: proto.Uint32(0)}
 }
 
 func buildTechnologyRefreshList(state *orm.TechnologyResearchState) []*protobuf.TECHNOLOGYREFRESH {
@@ -497,7 +516,7 @@ func buildTechnologyRefreshList(state *orm.TechnologyResearchState) []*protobuf.
 			Technologys: make([]*protobuf.TECHNOLOGYINFO, 0, len(pool.Technologies)),
 		}
 		for _, project := range pool.Technologies {
-			entry.Technologys = append(entry.Technologys, &protobuf.TECHNOLOGYINFO{Id: proto.Uint32(project.TechID), Time: proto.Uint32(project.FinishTime)})
+			entry.Technologys = append(entry.Technologys, &protobuf.TECHNOLOGYINFO{Id: proto.Uint32(project.TechID), Time: proto.Uint32(technologyFinishTime(project.FinishTime))})
 		}
 		result = append(result, entry)
 	}
@@ -507,9 +526,31 @@ func buildTechnologyRefreshList(state *orm.TechnologyResearchState) []*protobuf.
 func buildTechnologyQueueList(state *orm.TechnologyResearchState) []*protobuf.TECHNOLOGYINFO {
 	result := make([]*protobuf.TECHNOLOGYINFO, 0, len(state.Queue))
 	for _, queued := range state.Queue {
+		if queued.FinishTime != 0 && technologyFinishTime(queued.FinishTime) == 0 {
+			continue // 过期 = 已完成，发出去只会触发客户端的 completion 分支
+		}
 		result = append(result, &protobuf.TECHNOLOGYINFO{Id: proto.Uint32(queued.TechID), Time: proto.Uint32(queued.FinishTime)})
 	}
 	return result
+}
+
+// technologyFinishTime returns the finish_time that may be sent to the client.
+//
+// A time that has already passed must not leave here as a non-zero value. To the client's
+// Technology:isCompleted/finishCondition a passed time means "completed", and that path walks the
+// main-menu red-dot registration (PlayerProxy:IsShowCommssionTip), which dies on a VO the client
+// never built: the menu never draws and the player sits on the background forever while the
+// connection stays alive and heartbeats keep flowing - with no Lua error in logcat to show for it.
+//
+// Stale times reach us from two directions: an imported official snapshot (this account's research
+// had finished 2026-09-29 by the time we served it) and a project that completed while the player
+// was offline. Returning 0 puts such a project back to "available and not started", which is what
+// the client does after the player collects a finished one.
+func technologyFinishTime(finish uint32) uint32 {
+	if finish == 0 || finish > uint32(time.Now().Unix()) {
+		return finish
+	}
+	return 0
 }
 
 func carryPoolTargets(existing *orm.TechnologyResearchState, next []orm.TechnologyRefreshPoolState) {

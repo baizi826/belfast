@@ -1,7 +1,6 @@
 package orm
 
 import (
-	"encoding/json"
 	"fmt"
 )
 
@@ -28,7 +27,7 @@ func GetTransformDataTemplate(id uint32) (*TransformDataTemplate, error) {
 		return nil, err
 	}
 	var config TransformDataTemplate
-	if err := json.Unmarshal(entry.Data, &config); err != nil {
+	if err := DecodeConfig(entry.Data, &config); err != nil {
 		return nil, err
 	}
 	return &config, nil

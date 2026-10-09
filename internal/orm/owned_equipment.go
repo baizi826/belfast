@@ -23,6 +23,25 @@ func (c *Commander) EquipmentBagCount() uint32 {
 	return total
 }
 
+// DefaultEquipBagMax is the equipment-bag capacity assumed for a commander that was built without
+// a DB load (tests, tooling). It is also the column default migration 0078 added.
+const DefaultEquipBagMax uint32 = 250
+
+// EquipBagHasRoom reports whether n more equipment fit in the equipment bag.
+//
+// The capacity belongs to the account (SC_11003, migration 0078) and not to a constant. A hardcoded
+// 250 used to be copy-pasted into three handlers, and for an account holding 257 equipment every
+// copy read "bag full" and answered result=1 - which the client renders as 无效操作. Unequip
+// (12006), blueprint compose (14006) and on-ship transform (14013) all failed from that one number.
+func (c *Commander) EquipBagHasRoom(n uint32) bool {
+	capacity := c.EquipBagMax
+	if capacity == 0 {
+		capacity = DefaultEquipBagMax
+	}
+	// uint64 on purpose: n arrives straight off the wire, so count+n must not be able to wrap.
+	return uint64(c.EquipmentBagCount())+uint64(n) <= uint64(capacity)
+}
+
 func (c *Commander) GetOwnedEquipment(equipmentID uint32) *OwnedEquipment {
 	c.ensureOwnedEquipmentMap()
 	return c.OwnedEquipmentMap[equipmentID]

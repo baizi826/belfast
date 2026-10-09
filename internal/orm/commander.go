@@ -15,37 +15,45 @@ import (
 )
 
 type Commander struct {
-	CommanderID             uint32     `gorm:"primary_key"`
-	AccountID               uint32     `gorm:"not_null"`
-	Level                   int        `gorm:"default:1;not_null"`
-	Exp                     int        `gorm:"default:0;not_null"`
-	Name                    string     `gorm:"size:30;not_null;uniqueIndex"`
-	LastLogin               time.Time  `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
-	GuideIndex              uint32     `gorm:"default:0;not_null"`
-	NewGuideIndex           uint32     `gorm:"default:0;not_null"`
-	NameChangeCooldown      time.Time  `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
-	RoomID                  uint32     `gorm:"default:0;not_null"`
-	ExchangeCount           uint32     `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
-	DrawCount1              uint32     `gorm:"default:0;not_null"`
-	DrawCount10             uint32     `gorm:"default:0;not_null"`
-	SupportRequisitionCount uint32     `gorm:"default:0;not_null"`
-	SupportRequisitionMonth uint32     `gorm:"default:0;not_null"`
-	CollectAttackCount      uint32     `gorm:"default:0;not_null"`
-	AccPayLv                uint32     `gorm:"default:0;not_null"`
-	LivingAreaCoverID       uint32     `gorm:"default:0;not_null"`
-	SelectedIconFrameID     uint32     `gorm:"default:0;not_null"`
-	SelectedChatFrameID     uint32     `gorm:"default:0;not_null"`
-	SelectedBattleUIID      uint32     `gorm:"default:0;not_null"`
-	DisplayIconID           uint32     `gorm:"default:0;not_null"`
-	DisplaySkinID           uint32     `gorm:"default:0;not_null"`
-	DisplayIconThemeID      uint32     `gorm:"default:0;not_null"`
-	Manifesto               string     `gorm:"size:200;default:'';not_null"`
-	DormName                string     `gorm:"size:50;default:'';not_null"`
-	RandomShipMode          uint32     `gorm:"default:0;not_null"`
-	ChildDisplay            uint32     `gorm:"default:1004;not_null"`
-	MailStoreroomLv         uint32     `gorm:"default:1;not_null"`
-	RandomFlagShipEnabled   bool       `gorm:"default:false;not_null"`
-	DeletedAt               *time.Time `gorm:"index"`
+	CommanderID             uint32    `gorm:"primary_key"`
+	AccountID               uint32    `gorm:"not_null"`
+	Level                   int       `gorm:"default:1;not_null"`
+	Exp                     int       `gorm:"default:0;not_null"`
+	Name                    string    `gorm:"size:30;not_null;uniqueIndex"`
+	LastLogin               time.Time `gorm:"type:timestamp;default:CURRENT_TIMESTAMP;not_null"`
+	GuideIndex              uint32    `gorm:"default:0;not_null"`
+	NewGuideIndex           uint32    `gorm:"default:0;not_null"`
+	NameChangeCooldown      time.Time `gorm:"type:timestamp;default:'1970-01-01 00:00:00';not_null"`
+	RoomID                  uint32    `gorm:"default:0;not_null"`
+	ExchangeCount           uint32    `gorm:"default:0;not_null"` // Number of times the commander has built ships, can be exchanged for UR ships
+	DrawCount1              uint32    `gorm:"default:0;not_null"`
+	DrawCount10             uint32    `gorm:"default:0;not_null"`
+	SupportRequisitionCount uint32    `gorm:"default:0;not_null"`
+	SupportRequisitionMonth uint32    `gorm:"default:0;not_null"`
+	CollectAttackCount      uint32    `gorm:"default:0;not_null"`
+	AccPayLv                uint32    `gorm:"default:0;not_null"`
+	LivingAreaCoverID       uint32    `gorm:"default:0;not_null"`
+	SelectedIconFrameID     uint32    `gorm:"default:0;not_null"`
+	SelectedChatFrameID     uint32    `gorm:"default:0;not_null"`
+	SelectedBattleUIID      uint32    `gorm:"default:0;not_null"`
+	DisplayIconID           uint32    `gorm:"default:0;not_null"`
+	DisplaySkinID           uint32    `gorm:"default:0;not_null"`
+	DisplayIconThemeID      uint32    `gorm:"default:0;not_null"`
+	Manifesto               string    `gorm:"size:200;default:'';not_null"`
+	DormName                string    `gorm:"size:50;default:'';not_null"`
+	RandomShipMode          uint32    `gorm:"default:0;not_null"`
+	ChildDisplay            uint32    `gorm:"default:1004;not_null"`
+	MailStoreroomLv         uint32    `gorm:"default:1;not_null"`
+	RandomFlagShipEnabled   bool      `gorm:"default:false;not_null"`
+
+	// Bag capacities are account data (migration 0078): the official SC_11003 carries them and
+	// the client needs the real numbers. A too-small equip cap makes the client call the bag
+	// full and refuse to unequip anything.
+	ShipBagMax      uint32 `gorm:"default:250;not_null"`
+	EquipBagMax     uint32 `gorm:"default:250;not_null"`
+	CommanderBagMax uint32 `gorm:"default:250;not_null"`
+
+	DeletedAt *time.Time `gorm:"index"`
 
 	Punishments      []Punishment        `gorm:"foreignKey:PunishedID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
 	Ships            []OwnedShip         `gorm:"foreignKey:OwnerID;references:CommanderID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`

@@ -775,7 +775,7 @@ func loadEquipDataStatistics(equipID uint32) *equipDataStatisticsEntry {
 		return nil
 	}
 	var stats equipDataStatisticsEntry
-	if err := json.Unmarshal(entry.Data, &stats); err != nil {
+	if err := orm.DecodeConfig(entry.Data, &stats); err != nil {
 		return nil
 	}
 	return &stats
@@ -787,7 +787,7 @@ func loadTransformData(transformID uint32) *transformDataEntry {
 		return nil
 	}
 	var stats transformDataEntry
-	if err := json.Unmarshal(entry.Data, &stats); err != nil {
+	if err := orm.DecodeConfig(entry.Data, &stats); err != nil {
 		return nil
 	}
 	return &stats

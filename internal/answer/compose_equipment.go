@@ -41,7 +41,7 @@ func CompositeEquipment(buffer *[]byte, client *connection.Client) (int, int, er
 		return client.SendMessage(14007, &response)
 	}
 
-	if client.Commander.EquipmentBagCount()+num > equipBagMax {
+	if !client.Commander.EquipBagHasRoom(num) {
 		return client.SendMessage(14007, &response)
 	}
 

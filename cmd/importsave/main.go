@@ -19,6 +19,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -33,6 +34,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/ggmolly/belfast/internal/db"
+	"github.com/ggmolly/belfast/internal/orm"
 	"github.com/ggmolly/belfast/internal/protobuf"
 )
 
@@ -40,12 +42,17 @@ var fileRe = regexp.MustCompile(`^req\d+_rep(\d+)_(\d+)\.bin$`)
 
 // 包号 → 表分组
 var groupOf = map[int]string{
+	11003: "commander",
+	63000: "technology",
 	15001: "items",
 	12001: "ships",
 	12010: "ships",
 	14001: "equips",
 	20001: "tasks",
 }
+
+// groupOrder 决定了写入顺序（commander 是一条 UPDATE，先做无害）。
+var groupOrder = []string{"commander", "technology", "items", "ships", "equips", "tasks"}
 
 func main() {
 	dir := flag.String("dir", "", "目录：内含 req*_rep<cmd>_<n>.bin")
@@ -54,6 +61,7 @@ func main() {
 	schema := flag.String("schema", "belfast", "库 schema")
 	dryRun := flag.Bool("dry-run", false, "只统计，不写库")
 	keep := flag.Bool("keep", false, "不清空旧数据（默认先清后插）")
+	only := flag.String("only", "", "只导这一组（commander/technology/items/ships/equips/tasks）—— 加表时不必整份重放")
 	flag.Parse()
 
 	if *dir == "" || *cid == 0 || *dsn == "" {
@@ -87,7 +95,7 @@ func main() {
 		groups[g] = append(groups[g], payload)
 	}
 	fmt.Printf("读入 %d 个 payload；分组：", len(files))
-	for _, g := range []string{"items", "ships", "equips", "tasks"} {
+	for _, g := range groupOrder {
 		fmt.Printf("%s=%d ", g, len(groups[g]))
 	}
 	fmt.Printf("；未映射的包 %d 种（不导入）\n", len(skipped))
@@ -109,13 +117,20 @@ func main() {
 		info  string
 	}
 	var results []result
-	for _, g := range []string{"items", "ships", "equips", "tasks"} {
+	for _, g := range groupOrder {
 		if len(groups[g]) == 0 {
+			continue
+		}
+		if *only != "" && g != *only {
 			continue
 		}
 		var info string
 		var err error
 		switch g {
+		case "commander":
+			info, err = importCommander(ctx, tx, *cid, groups[g])
+		case "technology":
+			info, err = importTechnologyResearch(ctx, tx, *cid, groups[g])
 		case "items":
 			info, err = importItems(ctx, tx, *cid, groups[g], *keep)
 		case "ships":
@@ -141,6 +156,138 @@ func main() {
 	for _, r := range results {
 		fmt.Printf("  %-6s %s\n", r.group, r.info)
 	}
+}
+
+// ---------------------------------------------------------------- commander (SC_11003)
+
+// importCommander writes the account-level fields SC_11003 carries.
+//
+// Bag capacities are why this exists: player_info.go hardcoded them to 250, and the equipment
+// capacity decides whether the client lets the player move equipment at all. The account owns
+// 257 equipment, so a cap of 250 reads as a full bag and unequipping is refused outright -
+// with nothing wrong in the equipment code. Official values for this account: ship 1190,
+// equip 300, commander 40.
+//
+// This is an UPDATE, never a delete+insert. Every other column on that row belongs to the
+// running server, and the same trap that wiped owned_ships.is_secretary applies here.
+func importCommander(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte) (string, error) {
+	var shipBagMax, equipBagMax, commanderBagMax uint32
+	var level, exp, accPayLv uint32
+	for _, p := range payloads {
+		var msg protobuf.SC_11003
+		if err := proto.Unmarshal(p, &msg); err != nil {
+			return "", err
+		}
+		shipBagMax = msg.GetShipBagMax()
+		equipBagMax = msg.GetEquipBagMax()
+		commanderBagMax = msg.GetCommanderBagMax()
+		level = msg.GetLevel()
+		exp = msg.GetExp()
+		accPayLv = msg.GetAccPayLv()
+	}
+
+	// Level/exp/pay level ride along on the same row: the server's own defaults (level 70 for this
+	// account, pay level 0) are not the account's, and the client gates plenty of screens on them.
+	tag, err := tx.Exec(ctx, `
+UPDATE commanders
+SET ship_bag_max = $2, equip_bag_max = $3, commander_bag_max = $4,
+    level = $5, exp = $6, acc_pay_lv = $7
+WHERE commander_id = $1`,
+		int64(cid), int64(shipBagMax), int64(equipBagMax), int64(commanderBagMax),
+		int64(level), int64(exp), int64(accPayLv))
+	if err != nil {
+		return "", err
+	}
+	if tag.RowsAffected() == 0 {
+		return "", fmt.Errorf("commanders 里没有 commander_id=%d 这一行 —— 账号还没建，容量无处可写", cid)
+	}
+	return fmt.Sprintf("容量 船=%d 装备=%d 指挥猫=%d；等级 %d 经验 %d 充值等级 %d",
+		shipBagMax, equipBagMax, commanderBagMax, level, exp, accPayLv), nil
+}
+
+// ---------------------------------------------------------------- technology research (SC_63000)
+
+// importTechnologyResearch writes the account's research state: which project pools the client may
+// start from, the running queue, and the catch-up counters.
+//
+// Why it exists: nothing used to import this table, so the server's default row kept **placeholder**
+// pool entries (project ids 1,2,3,4,33 / 1001...). Those ids are not what the client offers, so
+// every tap in 科研 → 装备研发 was answered with a generic failure. The official payload carries the
+// real pools (875/865/803 and 801/743 for this account), and every one of them is condition=0 and
+// affordable.
+//
+// Not imported: catchup.pursuings - the state table has no column for them (only version/target),
+// so 追赶 renders empty until the table grows one.
+func importTechnologyResearch(ctx context.Context, tx pgx.Tx, cid uint64, payloads [][]byte) (string, error) {
+	var msg protobuf.SC_63000
+	for _, p := range payloads {
+		if err := proto.Unmarshal(p, &msg); err != nil {
+			return "", err
+		}
+	}
+
+	pools := make([]orm.TechnologyRefreshPoolState, 0, len(msg.GetRefreshList()))
+	projects := 0
+	for _, pool := range msg.GetRefreshList() {
+		entry := orm.TechnologyRefreshPoolState{ID: pool.GetId(), Target: pool.GetTarget()}
+		for _, tech := range pool.GetTechnologys() {
+			entry.Technologies = append(entry.Technologies, orm.TechnologyProjectState{
+				TechID:     tech.GetId(),
+				FinishTime: tech.GetTime(),
+			})
+			projects++
+		}
+		pools = append(pools, entry)
+	}
+	queue := make([]orm.TechnologyQueueState, 0, len(msg.GetQueue()))
+	for _, item := range msg.GetQueue() {
+		queue = append(queue, orm.TechnologyQueueState{
+			TechID:     item.GetId(),
+			FinishTime: item.GetTime(),
+			RefreshID:  poolHoldingTech(pools, item.GetId()),
+		})
+	}
+	poolsJSON, err := json.Marshal(pools)
+	if err != nil {
+		return "", err
+	}
+	queueJSON, err := json.Marshal(queue)
+	if err != nil {
+		return "", err
+	}
+
+	catchup := msg.GetCatchup()
+	// catchup_version / catchup_target are deliberately NOT written: the state table has no column
+	// for `pursuings`, and the client's getCurCatchNum() indexes catchupData[catchup_version], which
+	// it builds from pursuings - so a non-zero pair with no pursuings throws inside the 63000
+	// handler, which then never reaches updateTechnologyQueue, which leaves TechnologyProxy.queue
+	// nil, which kills the main menu (see buildTechnologyCatchup in internal/answer/technology).
+	tag, err := tx.Exec(ctx, `
+UPDATE technology_research_states
+SET refresh_flag = $2, refresh_pools = $3, queue = $4, updated_at = now()
+WHERE commander_id = $1`,
+		int64(cid), int64(msg.GetRefreshFlag()), string(poolsJSON), string(queueJSON))
+	if err != nil {
+		return "", err
+	}
+	if tag.RowsAffected() == 0 {
+		return "", fmt.Errorf("technology_research_states 里没有 commander_id=%d 这一行 —— 账号还没登录过，科研状态无处可写", cid)
+	}
+	return fmt.Sprintf("科研 池 %d 组/%d 个项目；队列 %d 条；追赶 v%d 未导入（表里没有 pursuings 列）",
+		len(pools), projects, len(queue), catchup.GetVersion()), nil
+}
+
+// poolHoldingTech returns the pool that offers techID, or 0 when no pool does: SC_63000's queue
+// entry only carries the project id and its finish time, never the pool it came from.
+func poolHoldingTech(pools []orm.TechnologyRefreshPoolState, techID uint32) uint32 {
+	for _, pool := range pools {
+		for _, tech := range pool.Technologies {
+			if tech.TechID == techID {
+				return pool.ID
+			}
+		}
+	}
+	return 0
 }
 
 // ---------------------------------------------------------------- items (SC_15001)

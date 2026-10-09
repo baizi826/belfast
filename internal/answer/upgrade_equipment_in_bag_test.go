@@ -50,7 +50,7 @@ func createTestEquipment(t *testing.T, id uint32, next uint32, transUseGold uint
 		transUseGold,
 		transUseItemJSON,
 	)
-	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_statistics.json", fmt.Sprintf("%d", id), payload)
+	execAnswerExternalTestSQLT(t, "INSERT INTO config_entries (category, key, data) VALUES ($1, $2, $3::jsonb)", "sharecfgdata/equip_data_template.json", fmt.Sprintf("%d", id), payload)
 }
 
 func seedUpgradeEquipmentCostDefs(t *testing.T) {

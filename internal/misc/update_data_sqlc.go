@@ -532,7 +532,12 @@ func importConfigEntriesSQLC(ctx context.Context, region string, q *gen.Queries)
 			// 缺了这行 ⇒ ship_data_breakout 整类不进库 ⇒ ValidateOwnedShipTemplateID 对任何船
 			// 都报 db: not found ⇒ 领船必失败（2026-09-30 实测卡在建造）。上游选择性下载模式也靠它。
 			"sharecfgdata/ship_data_breakout.json",
-			// 同理：装备回溯/升级走 GetConfigEntry 读它，不在名单里就整类缺失。
+			// loadEquipDataStatistics（answer/chapter/chapter_actions.go）要的是装备属性
+			// （value_1/2/3 那些），只有这张统计表里有。
+			// ⚠️ `next` / `trans_use_gold` / `trans_use_item` **不在这张表里** —— 它们属于
+			// sharecfgdata/equip_data_template.json，装备强化(14002/14004)与回溯走的是它。
+			// 曾经把这张统计表当成那两个功能的来源 ⇒ Next 恒为 0 ⇒ 强化永远通用失败。
+			// 本地镜像模式（BELFAST_DATA_DIR）按目录整批导入，模板那类不会缺。
 			"sharecfgdata/equip_data_statistics.json",
 			"ShareCfg/item_data_frame.json",
 			"ShareCfg/item_data_chat.json",

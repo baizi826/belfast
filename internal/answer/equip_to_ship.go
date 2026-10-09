@@ -12,8 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const equipBagMax = 250
-
 func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 	var data protobuf.CS_12006
 	if err := proto.Unmarshal(*buffer, &data); err != nil {
@@ -60,7 +58,7 @@ func EquipToShip(buffer *[]byte, client *connection.Client) (int, int, error) {
 		if current.EquipID == 0 {
 			return client.SendMessage(12007, &response)
 		}
-		if client.Commander.EquipmentBagCount() >= equipBagMax {
+		if !client.Commander.EquipBagHasRoom(1) {
 			response.Result = proto.Uint32(1)
 			return client.SendMessage(12007, &response)
 		}

@@ -2,8 +2,6 @@ package answer
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"math"
 
 	"github.com/ggmolly/belfast/internal/connection"
@@ -85,7 +83,7 @@ WHERE id = $1
 			return client.SendMessage(14009, &response)
 		}
 
-		rewards, err := parseDestroyEquipmentItems(destroyItemsRaw)
+		rewards, err := parseItemPairs(destroyItemsRaw)
 		if err != nil {
 			return client.SendMessage(14009, &response)
 		}
@@ -126,32 +124,4 @@ WHERE id = $1
 
 	response.Result = proto.Uint32(destroyEquipmentsResultOK)
 	return client.SendMessage(14009, &response)
-}
-
-func parseDestroyEquipmentItems(raw json.RawMessage) (map[uint32]uint32, error) {
-	if len(raw) == 0 {
-		return map[uint32]uint32{}, nil
-	}
-	var pairs [][]uint32
-	if err := json.Unmarshal(raw, &pairs); err != nil {
-		return nil, err
-	}
-
-	out := make(map[uint32]uint32, len(pairs))
-	for _, pair := range pairs {
-		if len(pair) != 2 {
-			return nil, errors.New("invalid destory_item")
-		}
-		itemID := pair[0]
-		count := pair[1]
-		if itemID == 0 || count == 0 {
-			continue
-		}
-		next := uint64(out[itemID]) + uint64(count)
-		if next > math.MaxUint32 {
-			return nil, errors.New("destory_item overflow")
-		}
-		out[itemID] = uint32(next)
-	}
-	return out, nil
 }
