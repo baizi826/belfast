@@ -35,6 +35,10 @@ capture ──→ reply_map ──→ state/*.bin ──→ importsave ──→
  设备侧         PC 侧          PC 侧          PC 侧            PC 侧
 ```
 
+> ⚠️ **路径前提**：下文命令里的 `.\tools\...` 与 `save\bili\...` 都在
+> **`E:\Agent工作区\碧蓝航线离线版本\`**（抓包工具与存档在那边），只有 `cmd\importsave`
+> 和本 skill 的脚本在 belfast 仓库。跑之前先 `Set-Location` 到对应根目录。
+
 ### 1. capture：抓官服登录 burst（设备侧）
 
 ```sh
