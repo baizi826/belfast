@@ -2,13 +2,10 @@ package answer
 
 import (
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/ggmolly/belfast/internal/connection"
 	"github.com/ggmolly/belfast/internal/consts"
-	"github.com/ggmolly/belfast/internal/logger"
 	"github.com/ggmolly/belfast/internal/misc"
 	"github.com/ggmolly/belfast/internal/region"
 
@@ -42,29 +39,9 @@ func buildUpdateCheckResponse(buffer *[]byte, client *connection.Client, hashesF
 		return 0, packetId, err
 	}
 
-	// BELFAST_SC10801_FILE：直接回放抓到的官服 SC_10801 应答，跳过下面“去官方网关拉哈希”的流程。
-	//
-	// 为什么需要：下面 getGameHashes() 会 Dial **真官方网关**（consts.RegionGateways[region]:80）
-	// 拿**当前**版本的哈希（而且伪造请求 Platform="1"=iOS、CN 还把 State 改成 56），
-	// 而客户端本地资源可能比官服旧（我们做过资源复用，本地是九游的 hashes*.csv）
-	// ⇒ 客户端报「哈希校验失败」或要求下载。
-	// 回放「官服当时对这台客户端的原话」版本天然一致。
-	// 详情见 notes/2026-09-30.md 的 U/V 节。
-	if override := strings.TrimSpace(os.Getenv("BELFAST_SC10801_FILE")); override != "" {
-		raw, readErr := os.ReadFile(override)
-		if readErr != nil {
-			logger.LogEvent("GameData", "SC10801Override", "cannot read "+override+": "+readErr.Error(), logger.LOG_LEVEL_ERROR)
-		} else {
-			var captured protobuf.SC_10801
-			if unmarshalErr := proto.Unmarshal(raw, &captured); unmarshalErr != nil {
-				logger.LogEvent("GameData", "SC10801Override", "bad captured payload: "+unmarshalErr.Error(), logger.LOG_LEVEL_ERROR)
-			} else {
-				logger.LogEvent("GameData", "SC10801Override", "serving captured SC_10801 from "+override, logger.LOG_LEVEL_INFO)
-				return client.SendMessage(packetId, &captured)
-			}
-		}
-	}
-
+	// The version list is built locally from BELFAST_DATA_DIR (see misc.localHashes).
+	// It used to be replayed from a captured official SC_10801, or fetched by dialing
+	// the official gateway; both made us depend on something outside this deployment.
 	updateVersions(hashesFn)
 	belfastRegion := region.Current()
 
@@ -99,6 +76,11 @@ func buildUpdateCheckResponse(buffer *[]byte, client *connection.Client, hashesF
 	return client.SendMessage(packetId, &response)
 }
 
+// versionTrailers are the two literal entries the official SC_10801 appends after the
+// fingerprint list. They are part of the contract, so they are added here - the hash
+// source only produces the `$...hash$...` entries.
+var versionTrailers = []string{"count-2", "dTag-1"}
+
 func updateVersions(hashesFn func() misc.HashMap) []string {
 	if len(versions) != 0 {
 		return versions
@@ -107,6 +89,6 @@ func updateVersions(hashesFn func() misc.HashMap) []string {
 	for _, hash := range hashes {
 		versions = append(versions, hash.Hash)
 	}
-	versions = append(versions, "dTag-1")
+	versions = append(versions, versionTrailers...)
 	return versions
 }

@@ -6,19 +6,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/ggmolly/belfast/internal/connection"
-	"github.com/ggmolly/belfast/internal/consts"
 	"github.com/ggmolly/belfast/internal/logger"
-	"github.com/ggmolly/belfast/internal/protobuf"
 	"github.com/ggmolly/belfast/internal/region"
-	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -104,62 +98,16 @@ func getGameHashes(triggerUpdate bool) HashMap {
 		return hashes
 	}
 
-	// no cache, get the hashes from the server
-	logger.LogEvent("GameUpdate", "GetHashes", "No cached hashes, fetching from server", logger.LOG_LEVEL_INFO)
-	sock, err := net.Dial("tcp", fmt.Sprintf("%s:80", consts.RegionGateways[region]))
-	if err != nil {
-		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
+	// No cache. Build the fingerprint from our own data tree instead of dialing the
+	// official gateway: a private server must not require the official server to be
+	// reachable, and its answer must not be a captured byte blob.
+	azurLaneHashes = localHashes(region)
+	if azurLaneHashes == nil {
+		logger.LogEvent("GameUpdate", "GetHashes",
+			"cannot build local hashes, SC_10801 will carry no version list", logger.LOG_LEVEL_ERROR)
 		return nil
 	}
-	defer sock.Close()
 
-	// Forge an update packet, CS_10800
-	promptUpdate := protobuf.CS_10800{
-		State:    proto.Uint32(59),  // 59 is something, might need to update this later?
-		Platform: proto.String("1"), // iOS
-	}
-	if region == "CN" {
-		// fix version invalid?
-		promptUpdate.State = proto.Uint32(56)
-	}
-	packet, err := proto.Marshal(&promptUpdate)
-	if err != nil {
-		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
-		return nil
-	}
-	connection.InjectPacketHeader(10800, &packet, 0)
-	// Send the packet
-	logger.LogEvent("GameUpdate", "GetHashes", "Sending update prompt", logger.LOG_LEVEL_INFO)
-	if _, err := sock.Write(packet); err != nil {
-		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
-		return nil
-	}
-	// Read the response
-	logger.LogEvent("GameUpdate", "GetHashes", "Reading update response", logger.LOG_LEVEL_INFO)
-	var responseData protobuf.SC_10801
-	response := make([]byte, 1024)
-	n, err := sock.Read(response)
-	if err != nil || n < 8 {
-		logger.LogEvent("GameUpdate", "GetHashes", "Failed to receive response, or invalid response.", logger.LOG_LEVEL_ERROR)
-		return nil
-	}
-	response = response[7:n]
-	if err := proto.Unmarshal(response, &responseData); err != nil {
-		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
-		return nil
-	}
-	// Parse the response
-	logger.LogEvent("GameUpdate", "GetHashes", "Parsing update response", logger.LOG_LEVEL_INFO)
-	for _, hash := range responseData.GetVersion() {
-		if !strings.Contains(hash, "hash$") {
-			continue
-		}
-		fields := strings.Split(hash, "$")
-		azurLaneHashes = append(azurLaneHashes, GameChecksum{
-			Category: fields[1],
-			Hash:     hash,
-		})
-	}
 	// Cache the hashes
 	cache := hashCache{
 		Region:  region,
@@ -169,14 +117,12 @@ func getGameHashes(triggerUpdate bool) HashMap {
 	file, err := os.OpenFile(".cached_hashes", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
-		return nil
+		return azurLaneHashes
 	}
 	defer file.Close()
 	encoder := gob.NewEncoder(file)
-	err = encoder.Encode(cache)
-	if err != nil {
+	if err := encoder.Encode(cache); err != nil {
 		logger.LogEvent("GameUpdate", "GetHashes", err.Error(), logger.LOG_LEVEL_ERROR)
-		return nil
 	}
 	if triggerUpdate {
 		go UpdateAllData(region)
